@@ -54,8 +54,8 @@ jobs:
       - name: Typecheck (incl. SQL against the schema)
         run: bun run typecheck
 
-      - name: Lint
-        run: bun lint
+      # ponytail: no lint step yet. `bun lint` exists only in Bun canary (used locally), not in
+      # stable 1.4.4. Add `- run: bun lint` once a stable release ships it.
 
       - name: Test
         run: bun test
