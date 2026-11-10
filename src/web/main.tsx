@@ -1,12 +1,13 @@
+import "@react-spectrum/s2/page.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { App } from "./App.tsx";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root element missing from index.html");
 
-// Placeholder until #3 adds App.tsx with the UI library.
 createRoot(root).render(
   <StrictMode>
-    <h1>Accountant</h1>
+    <App />
   </StrictMode>,
 );
