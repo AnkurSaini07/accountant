@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "typecheck": "bun check",
-    "lint:fix": "bun lint --fix"
+    "lint:fix": "bun lint --fix",
+    "auth:dev": "bun scripts/pocket-id.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

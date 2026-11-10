@@ -25,10 +25,13 @@ to use on the shop floor and office, and can be extended without Tally licensing
 
 | Role | Who | Can do |
 |---|---|---|
-| **Admin** | Owner | Everything, including users, company settings, deleting/cancelling finalized documents |
+| **Admin** | Owner | Everything, including company settings, deleting/cancelling finalized documents |
 | **Accountant** | Office / CA staff | All documents, vouchers, reports; cannot manage users |
 | **Operator** | Dispatch / store | Create challans, GRNs, view stock; no accounting or reports |
 | **Viewer** | Read-only | View documents and reports |
+
+Users and their roles live in **Pocket ID** (the OAuth/OIDC server, §4.2). A role is a Pocket ID
+group: `accountant-admin`, `accountant-accountant`, `accountant-operator`, `accountant-viewer`.
 
 ## 3. Domain glossary
 
@@ -58,10 +61,13 @@ Priority: **P0** = needed to stop using Tally for daily billing, **P1** = needed
 - FR-1.4 Document number series per document type per FY, with configurable prefix (e.g. `INV/26-27/0001`). Numbers are consecutive, unique within the FY, and at most 16 characters (GST rule).
 
 ### 4.2 Users & security (P0)
-- FR-2.1 Login with username + password (hashed with `Bun.password`), session cookie (HttpOnly, SameSite=Lax, Secure in prod).
-- FR-2.2 Role-based access per §2, enforced on the API (UI hiding is only a convenience).
-- FR-2.3 Admin can create, disable and reset passwords for users.
-- FR-2.4 Audit log of create/update/cancel on documents and vouchers: who, when, what changed (P1).
+- FR-2.1 The app does **not** store passwords. Login goes through **[Pocket ID](https://pocket-id.org)**, a self-hosted OIDC provider that signs users in with passkeys. The app is a confidential OIDC client and uses the Authorization Code flow with PKCE, `state` and `nonce`.
+- FR-2.2 After the callback, the server validates the ID token, upserts a local `users` row keyed by the OIDC `sub` (name, email, role), and issues its own session cookie (HttpOnly, SameSite=Lax, Secure in prod). The browser never sees OIDC tokens.
+- FR-2.3 Role = the user's Pocket ID group (§2), read from the `groups` claim on every login. No group means no access. Users are added, removed and assigned groups in the Pocket ID admin UI, not in this app.
+- FR-2.4 Role-based access per §2, enforced on the API (UI hiding is only a convenience).
+- FR-2.5 Logout ends the app session and redirects to Pocket ID's end-session endpoint.
+- FR-2.6 Audit log of create/update/cancel on documents and vouchers: who, when, what changed (P1).
+- FR-2.7 *(P2)* An **MCP server** for the app, protected by the same Pocket ID instance as the OAuth authorization server. MCP clients register through **CIMD** (Client ID Metadata Documents). Pocket ID supports CIMD but has decided not to support DCR (Dynamic Client Registration), which the MCP spec now deprecates.
 
 ### 4.3 Masters (P0)
 - FR-3.1 **Parties** (customers, suppliers, or both): name, GSTIN (validated with checksum; state auto-filled from the first two digits), PAN, registration type (Regular / Composition / Unregistered / Consumer), billing address, one or more shipping addresses, contact person, phone, email, credit days, credit limit, opening balance (Dr/Cr).
@@ -127,7 +133,7 @@ Priority: **P0** = needed to stop using Tally for daily billing, **P1** = needed
 - **NFR-3 Performance:** pages load in < 1 s on the office LAN with 5 years of data (~50k invoices).
 - **NFR-4 Usability:** keyboard-friendly data entry (Tally users are keyboard-heavy); works on a phone for viewing and challans. Accessible components (React Spectrum).
 - **NFR-5 Localisation:** INR formatting `1,23,456.00`, amount in words in lakh/crore, dates `DD-MM-YYYY`. English UI in v1, Hindi labels P2.
-- **NFR-6 Security:** passwords hashed, sessions server-side, role checks on every API route, input validated at the API boundary, HTTPS in production.
+- **NFR-6 Security:** no passwords in the app (Pocket ID passkeys), sessions server-side, role checks on every API route, input validated at the API boundary, HTTPS in production.
 - **NFR-7 Testability:** every task ships with tests (`bun test`); CI runs typecheck + tests on every push.
 
 ## 6. Technical decisions
@@ -141,6 +147,7 @@ Priority: **P0** = needed to stop using Tally for daily billing, **P1** = needed
 | Database | **SQLite** (dev) → **Postgres** (prod) | See risk R-1. |
 | Migrations | Plain numbered `.sql` files + a small runner | Reylo only runs queries; it does not manage schema. |
 | Validation | **Zod** at the API boundary | Shared schemas between server and web. |
+| Auth | **Pocket ID** (OIDC) + `oauth4webapi` client | Dev: `bun run auth:dev` runs a pinned Pocket ID binary on `http://localhost:1411`. |
 | Printing | HTML/CSS print layouts + browser print-to-PDF | Server PDF later. |
 
 ### Proposed layout
@@ -154,7 +161,7 @@ docs/            this document, ADRs
 ```
 
 ### Data model (outline)
-- `companies`, `users`, `sessions`, `audit_log`
+- `companies`, `users` (keyed by OIDC `sub`), `sessions`, `audit_log`
 - `parties`, `party_addresses`, `items`, `units`, `gst_rates`, `ledger_groups`, `ledgers`
 - `number_series`
 - `documents` (one table, `type` = QUOTATION | SALES_ORDER | DELIVERY_CHALLAN | TAX_INVOICE | CREDIT_NOTE | PURCHASE_ORDER | GRN | PURCHASE_BILL | DEBIT_NOTE) + `document_lines` + `document_links` (which document was created from which, with quantities)
@@ -181,6 +188,8 @@ docs/            this document, ADRs
 - **R-2 TypeScript 7.1 is in beta.** Reylo's types need it. Pin the version; runtime still works if type inference breaks.
 - **R-3 React Spectrum S2 + Bun bundler.** S2 relies on build-time macros; verified in task #3 before any UI work.
 - **R-4 GST rule changes.** Rates and thresholds are data (FR-3.3); invoice format is reviewed with the CA before go-live.
+- **R-6 Passkeys need HTTPS.** WebAuthn works on `localhost` but needs HTTPS and a real hostname elsewhere, so an office-LAN deployment needs a domain + TLS (e.g. a reverse proxy with a certificate), not a bare IP. Staff need a device with passkey support. For people without one, Pocket ID's one-time login codes are the fallback.
+- **R-7 Pocket ID is a second service** to run, back up and keep updated. It is small (one binary + SQLite), but it is a dependency for every login.
 - **R-5 Tally data quality.** Old masters may have duplicates or missing GSTINs; the import produces an exceptions report rather than failing.
 
 ## 9. Open questions (to confirm with the owner / CA)
