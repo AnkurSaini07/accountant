@@ -1,33 +1,45 @@
 // Import S2 components from their own entry points, not "@react-spectrum/s2": the main index pulls in
-// every component's CSS (783 KB vs 145 KB minified for this page).
-import { Button } from "@react-spectrum/s2/Button";
+// every component's CSS (783 KB vs 145 KB minified for one page). See docs/adr/0001-ui-library.md.
 import { Provider } from "@react-spectrum/s2/Provider";
-import { TextField } from "@react-spectrum/s2/TextField";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import { useState } from "react";
+import { BrowserRouter, useHref, useNavigate } from "react-router";
+import { Layout } from "./components/Layout.tsx";
+import { AppRoutes } from "./routes.tsx";
 
-// Placeholder screen proving S2 components + the style macro work with Bun (#3). #14 replaces it with the app layout.
-const layout = style({ display: "flex", flexDirection: "column", gap: 16, padding: 24, maxWidth: 400 });
-const title = style({ font: "heading-xl", margin: 0 });
-const body = style({ font: "body" });
+// ponytail: placeholder until the company profile API (#22) and FY utils (#11) exist.
+const COMPANY_NAME = "My Company";
+function recentFinancialYears(today = new Date(), count = 3): string[] {
+  const startYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1; // FY starts 1 April
+  return Array.from({ length: count }, (_, i) => {
+    const y = startYear - i;
+    return `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
+  });
+}
+
+/** Everything below the router; tests render this inside a MemoryRouter. */
+export function Shell() {
+  const navigate = useNavigate();
+  const financialYears = recentFinancialYears();
+  const [financialYear, setFinancialYear] = useState(financialYears[0]!);
+
+  return (
+    // `router` makes S2 links (e.g. SideNav) navigate client-side instead of reloading the page.
+    <Provider background="base" router={{ navigate, useHref }}>
+      <Layout
+        companyName={COMPANY_NAME}
+        financialYears={financialYears}
+        financialYear={financialYear}
+        onFinancialYearChange={setFinancialYear}>
+        <AppRoutes />
+      </Layout>
+    </Provider>
+  );
+}
 
 export function App() {
-  const [name, setName] = useState("");
-  const [greeting, setGreeting] = useState("");
   return (
-    <Provider background="base">
-      <main className={layout}>
-        <h1 className={title}>Accountant</h1>
-        <TextField label="Party name" value={name} onChange={setName} />
-        <Button variant="accent" onPress={() => setGreeting(`Hello, ${name || "world"}`)}>
-          Greet
-        </Button>
-        {greeting && (
-          <p role="status" className={body}>
-            {greeting}
-          </p>
-        )}
-      </main>
-    </Provider>
+    <BrowserRouter>
+      <Shell />
+    </BrowserRouter>
   );
 }
