@@ -143,11 +143,11 @@ Priority: **P0** = needed to stop using Tally for daily billing, **P1** = needed
 | Runtime | **Bun** | Also package manager, test runner, bundler. |
 | Backend | **Hono** on `Bun.serve()` | JSON API under `/api/*`. |
 | Frontend | **React** + **React Spectrum** (latest: `@react-spectrum/s2`) | S2 needs its style macro at build time; task #3 verifies it works with Bun's bundler, falling back to `@adobe/react-spectrum` v3 if not. |
-| DB access | **Reylo** — typed `.sql` files run through `Bun.sql` | One driver for SQLite (dev) and Postgres (prod). Needs TypeScript 7.1 for type inference. |
-| Database | **SQLite** (dev) → **Postgres** (prod) | See risk R-1. |
+| DB access | **Reylo** — typed `.sql` files run through `Bun.sql` | Queries are type-checked against the dev Postgres. Needs TypeScript 7.1 for type inference. |
+| Database | **Postgres** in dev, CI and prod | Dev runs in Docker (OrbStack) via `compose.yaml`. |
 | Migrations | Plain numbered `.sql` files + a small runner | Reylo only runs queries; it does not manage schema. |
 | Validation | **Zod** at the API boundary | Shared schemas between server and web. |
-| Auth | **Pocket ID** (OIDC) + `oauth4webapi` client | Dev: `bun run auth:dev` runs a pinned Pocket ID binary on `http://localhost:1411`. |
+| Auth | **Pocket ID** (OIDC) + `oauth4webapi` client | Dev: `bun run services:up` runs Pocket ID in Docker on `http://localhost:1411`. |
 | Printing | HTML/CSS print layouts + browser print-to-PDF | Server PDF later. |
 
 ### Proposed layout
@@ -179,17 +179,17 @@ docs/            this document, ADRs
 | **M4 Accounting** | Vouchers, auto-posting, receipts/payments, financial reports | Books kept in the app |
 | **M5 Inventory** | Stock ledger, stock summary, low stock | Stock tracked |
 | **M6 GST reports** | Registers, GSTR-1, GSTR-3B, e-way bill export | CA can file from app data |
-| **M7 Production** | Postgres, backups, audit log, deployment | Safe to run for real |
+| **M7 Production** | Backups, audit log, deployment, MCP server | Safe to run for real |
 | **M8 Tally migration** | Import masters & opening balances | Tally switched off |
 
 ## 8. Risks
 
-- **R-1 Two SQL dialects.** Reylo types each query against one database. SQL written for SQLite may not run on Postgres (casts, `returning`, date functions, upserts). Mitigation: write portable SQL, and from M7 run CI against Postgres too. Simplest alternative: use Postgres in dev as well (Docker) from day one.
+- **R-1 ~~Two SQL dialects~~ — resolved.** Postgres is used everywhere (dev, CI, prod), so the queries Reylo type-checks are the ones production runs.
 - **R-2 TypeScript 7.1 is in beta.** Reylo's types need it. Pin the version; runtime still works if type inference breaks.
 - **R-3 React Spectrum S2 + Bun bundler.** S2 relies on build-time macros; verified in task #3 before any UI work.
 - **R-4 GST rule changes.** Rates and thresholds are data (FR-3.3); invoice format is reviewed with the CA before go-live.
 - **R-6 Passkeys need HTTPS.** WebAuthn works on `localhost` but needs HTTPS and a real hostname elsewhere, so an office-LAN deployment needs a domain + TLS (e.g. a reverse proxy with a certificate), not a bare IP. Staff need a device with passkey support. For people without one, Pocket ID's one-time login codes are the fallback.
-- **R-7 Pocket ID is a second service** to run, back up and keep updated. It is small (one binary + SQLite), but it is a dependency for every login.
+- **R-7 Pocket ID is a second service** to run, back up and keep updated. It is small (one container with its own SQLite volume), but it is a dependency for every login.
 - **R-5 Tally data quality.** Old masters may have duplicates or missing GSTINs; the import produces an exceptions report rather than failing.
 
 ## 9. Open questions (to confirm with the owner / CA)

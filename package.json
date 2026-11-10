@@ -6,7 +6,8 @@
   "scripts": {
     "typecheck": "bun check",
     "lint:fix": "bun lint --fix",
-    "auth:dev": "bun scripts/pocket-id.ts"
+    "services:up": "docker compose up -d --wait",
+    "services:down": "docker compose down"
   },
   "devDependencies": {
     "@types/bun": "latest"

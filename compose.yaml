@@ -1,0 +1,38 @@
+# Dev services: `bun run services:up` (needs Docker, e.g. OrbStack). Values come from .env.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: accountant
+      POSTGRES_PASSWORD: accountant
+      POSTGRES_DB: accountant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accountant -d accountant"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  pocket-id:
+    image: ghcr.io/pocket-id/pocket-id:v2.19.2
+    environment:
+      APP_URL: http://localhost:1411
+      ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY:?set POCKET_ID_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
+      TRUST_PROXY: "false"
+    ports:
+      - "1411:1411"
+    volumes:
+      - pocket-id:/app/data
+    healthcheck:
+      test: ["CMD", "/app/pocket-id", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres:
+  pocket-id:
