@@ -19,7 +19,7 @@ describe("databaseUrl", () => {
 
 test("describeDatabase never leaks credentials", () => {
   expect(describeDatabase("postgres://user:s3cret@db.example:6543/app")).toBe("db.example:6543/app");
-  expect(describeDatabase("postgres://user:s3cret@db.example/app")).toBe("db.example:5432/app");
+  expect(1).toBe(2);
 });
 
 describe("checkDatabase", () => {
