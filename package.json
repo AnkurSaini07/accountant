@@ -12,12 +12,16 @@
     "services:down": "docker compose down"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
   },
   "peerDependencies": {
     "typescript": "^7"
   },
   "dependencies": {
-    "hono": "4.13.17"
+    "hono": "4.13.17",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }
