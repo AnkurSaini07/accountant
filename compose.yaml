@@ -1,4 +1,6 @@
-# Dev services: `bun run services:up` (needs Docker, e.g. OrbStack). Values come from .env.
+# Dev services: `bun run services:up` (needs OrbStack). Values come from .env.
+# No host ports: OrbStack serves each container at https://<service>.accountant.orb.local
+# (Postgres at postgres.accountant.orb.local:5432).
 services:
   postgres:
     image: postgres:18-alpine
@@ -6,8 +8,6 @@ services:
       POSTGRES_USER: accountant
       POSTGRES_PASSWORD: accountant
       POSTGRES_DB: accountant
-    ports:
-      - "5433:5432"  # 5433 on the host: avoids clashing with a local Homebrew Postgres
     volumes:
       - postgres:/var/lib/postgresql
     healthcheck:
@@ -19,11 +19,9 @@ services:
   pocket-id:
     image: ghcr.io/pocket-id/pocket-id:v2.19.2
     environment:
-      APP_URL: http://localhost:1411
+      APP_URL: https://pocket-id.accountant.orb.local
       ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY:?set POCKET_ID_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
       TRUST_PROXY: "false"
-    ports:
-      - "1411:1411"
     volumes:
       - pocket-id:/app/data
     healthcheck:

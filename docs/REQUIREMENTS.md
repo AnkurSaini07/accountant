@@ -195,10 +195,10 @@ Scope is "make the monthly salary correctly", not HR. Access is limited to Admin
 | Backend | **Hono** on `Bun.serve()` | JSON API under `/api/*`. |
 | Frontend | **React** + **React Spectrum** (latest: `@react-spectrum/s2`) | S2 needs its style macro at build time; task #3 verifies it works with Bun's bundler, falling back to `@adobe/react-spectrum` v3 if not. |
 | DB access | **Reylo** — typed `.sql` files run through `Bun.sql` | Queries are type-checked against the dev Postgres. Needs TypeScript 7.1 for type inference. |
-| Database | **Postgres** in dev, CI and prod | Dev runs in Docker (OrbStack) via `compose.yaml`. |
+| Database | **Postgres** in dev, CI and prod | Dev runs in OrbStack via `compose.yaml`, at `postgres.accountant.orb.local`. |
 | Migrations | Plain numbered `.sql` files + a small runner | Reylo only runs queries; it does not manage schema. |
 | Validation | **Zod** at the API boundary | Shared schemas between server and web. |
-| Auth | **Pocket ID** (OIDC) + `oauth4webapi` client | Dev: `bun run services:up` runs Pocket ID in Docker on `http://localhost:1411`. |
+| Auth | **Pocket ID** (OIDC) + `oauth4webapi` client | Dev: `bun run services:up` runs Pocket ID at `https://pocket-id.accountant.orb.local`. That is real HTTPS on a real hostname, so passkeys behave as in production. |
 | Printing | HTML/CSS print layouts + browser print-to-PDF | Server PDF later. |
 
 ### Proposed layout

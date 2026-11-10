@@ -29,14 +29,16 @@ This project was created using `bun init` in bun v1.4.4. [Bun](https://bun.com) 
 
 ## Dev services (Postgres + Pocket ID)
 
-Needs Docker (e.g. [OrbStack](https://orbstack.dev)).
+Needs [OrbStack](https://orbstack.dev), which gives each container an HTTPS `*.orb.local` domain.
 
 ```bash
 cp .env.example .env                       # then set POCKET_ID_ENCRYPTION_KEY=$(openssl rand -base64 32)
-bun run services:up                        # Postgres on :5433, Pocket ID on http://localhost:1411
+bun run services:up    # Pocket ID: https://pocket-id.accountant.orb.local  Postgres: postgres.accountant.orb.local:5432
 ```
 
-First run of Pocket ID: open http://localhost:1411/setup and register the admin passkey. Then in the Pocket ID admin:
+Run Bun with `--use-system-ca` whenever it calls Pocket ID, so it trusts OrbStack's local HTTPS certificate (a `NODE_USE_SYSTEM_CA` entry in `.env` is read too late).
+
+First run of Pocket ID: open https://pocket-id.accountant.orb.local/setup and register the admin passkey. Then in the Pocket ID admin:
 1. Create the groups `accountant-admin`, `accountant-accountant`, `accountant-operator`, `accountant-viewer`, and add yourself to `accountant-admin`.
 2. Create an OIDC client "Accountant" with callback URL `http://localhost:3000/api/auth/callback`, and allow the `accountant-*` groups.
 3. Put the client ID and secret into `.env` (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`).
