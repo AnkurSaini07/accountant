@@ -1,28 +1,17 @@
-// Each test gets its own throwaway database on the dev Postgres (`bun run services:up`).
-import { SQL } from "bun";
+// Each test gets its own empty throwaway database on the dev Postgres (`bun run services:up`).
+import type { SQL } from "bun";
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { databaseUrl, db } from "./db.ts";
 import { loadMigrations, migrate } from "./migrate.ts";
-
-const cleanups: (() => Promise<unknown> | void)[] = [];
-afterAll(async () => {
-  for (const c of cleanups.reverse()) await c();
-});
+import { testDb } from "./test/db.ts";
 
 /** A fresh empty database and a migrations dir holding `files`. */
 async function setup(files: Record<string, string>) {
-  const name = `migrate_test_${crypto.randomUUID().replaceAll("-", "")}`;
-  await db.unsafe(`create database ${name}`);
-  const url = new URL(databaseUrl());
-  url.pathname = `/${name}`;
-  const conn = new SQL(url.toString());
-  cleanups.push(() => db.unsafe(`drop database if exists ${name} with (force)`), () => conn.close());
-
+  const conn = await testDb({ migrated: false });
   const dir = mkdtempSync(join(tmpdir(), "migrations-"));
-  cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
   for (const [file, sql] of Object.entries(files)) await Bun.write(join(dir, file), sql);
   return { conn, dir, write: (file: string, sql: string) => Bun.write(join(dir, file), sql) };
 }
