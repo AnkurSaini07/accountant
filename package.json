@@ -10,7 +10,8 @@
     "lint:fix": "bun lint --fix",
     "services:up": "docker compose up -d --wait",
     "services:down": "docker compose down",
-    "build": "bun scripts/build.ts"
+    "build": "bun scripts/build.ts",
+    "migrate": "bun scripts/migrate.ts"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^21.0.4",
