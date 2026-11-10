@@ -185,7 +185,10 @@ Scope is "make the monthly salary correctly", not HR. Access is limited to Admin
 - **NFR-4 Usability:** keyboard-friendly data entry (Tally users are keyboard-heavy); works on a phone for viewing and challans. Accessible components (React Spectrum).
 - **NFR-5 Localisation:** INR formatting `1,23,456.00`, amount in words in lakh/crore, dates `DD-MM-YYYY`. English UI in v1, Hindi labels P2.
 - **NFR-6 Security:** no passwords in the app (Pocket ID passkeys), sessions server-side, role checks on every API route, input validated at the API boundary, HTTPS in production.
-- **NFR-7 Testability:** every task ships with tests (`bun test`); CI runs typecheck + tests on every push.
+- **NFR-7 Testability:** every task ships with tests. CI runs typecheck and all tests on every push. There are three layers:
+  - **Unit / API tests** (`bun test`): every backend and shared change.
+  - **Component tests** (`bun test` with happy-dom and React Testing Library): every screen. Tests find elements by role and label, never by CSS class, because React Spectrum generates its own class names.
+  - **End-to-end tests** (Playwright): a few critical flows per milestone, such as sales, purchase, receipts and payroll. Tests sign in through a test-only route, because passkeys can't be automated; the real login is covered by mocked tests. CI keeps a Playwright trace of every failure.
 
 ## 6. Technical decisions
 
@@ -200,6 +203,7 @@ Scope is "make the monthly salary correctly", not HR. Access is limited to Admin
 | Validation | **Zod** at the API boundary | Shared schemas between server and web. |
 | Auth | **Pocket ID** (OIDC) + `oauth4webapi` client | Dev: `bun run services:up` runs Pocket ID at `https://pocket-id.accountant.orb.local`. That is real HTTPS on a real hostname, so passkeys behave as in production. |
 | Printing | HTML/CSS print layouts + browser print-to-PDF | Server PDF later. |
+| UI testing | happy-dom + Testing Library for components, **Playwright** for end-to-end | `Bun.WebView` was considered. It is experimental and has no role/label locators, no auto-waiting assertions or traces, and no cookie, network or upload control on WebKit. Revisit when it matures. |
 
 ### Proposed layout
 ```
