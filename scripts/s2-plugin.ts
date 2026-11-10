@@ -35,17 +35,24 @@ export const s2Plugin: BunPlugin = {
   name: "react-spectrum-s2",
   setup(build) {
     const css = new Map<string, string>(); // virtual module id -> CSS emitted by a macro
+    // Bun.plugin() at runtime (the bun test preload) has no build config and no CSS loader.
+    // Tests need the macro's class names, not its CSS, so CSS becomes an empty module there.
+    const runtime = build.config === undefined;
 
-    build.onLoad({ filter: /@react-spectrum[\\/]s2[\\/].*\.css$/ }, async (args) => ({
-      contents: rewriteViewTransitionTypes(await Bun.file(args.path).text()),
-      loader: "css",
-    }));
+    if (!runtime) {
+      build.onLoad({ filter: /@react-spectrum[\\/]s2[\\/].*\.css$/ }, async (args) => ({
+        contents: rewriteViewTransitionTypes(await Bun.file(args.path).text()),
+        loader: "css",
+      }));
+    }
 
-    build.onLoad({ filter: /\.[jt]sx?$/ }, async (args) => {
+    // Skip node_modules in the filter itself: re-emitting a CommonJS package through a plugin breaks
+    // its interop when the plugin runs at runtime (bun test preload).
+    build.onLoad({ filter: /^(?!.*[\\/]node_modules[\\/]).*\.[jt]sx?$/ }, async (args) => {
       const ext = extname(args.path) as keyof typeof LOADERS;
       const code = await Bun.file(args.path).text();
       const loader = LOADERS[ext];
-      if (args.path.includes("/node_modules/") || !MACRO_ATTR.test(code)) return { contents: code, loader };
+      if (!MACRO_ATTR.test(code)) return { contents: code, loader };
 
       const imports: string[] = [];
       const result = (await transform(TYPES[ext]!, args.path, code, async (_err: unknown, src: string, exportName: string, macroArgs: unknown[], loc: unknown) => {
@@ -77,7 +84,7 @@ export const s2Plugin: BunPlugin = {
     build.onLoad({ filter: /.*/, namespace: NAMESPACE }, (args) => {
       const contents = css.get(args.path);
       if (contents === undefined) throw new Error(`Unknown macro CSS module ${args.path}`);
-      return { contents, loader: "css" };
+      return runtime ? { contents: "", loader: "js" } : { contents, loader: "css" };
     });
   },
 };

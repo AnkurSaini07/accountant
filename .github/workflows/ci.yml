@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18-alpine # same as compose.yaml
+        env:
+          POSTGRES_USER: accountant
+          POSTGRES_PASSWORD: accountant
+          POSTGRES_DB: accountant
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U accountant -d accountant"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+
+    env:
+      DATABASE_URL: postgres://accountant:accountant@localhost:5432/accountant
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      # tsc runs Reylo's content mapper with `node`, and Reylo needs Node 24+.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - run: bun install --frozen-lockfile
+
+      # Typecheck needs the schema: Reylo types each .sql query from the live database.
+      - name: Migrate
+        run: bun run migrate
+
+      - name: Typecheck (incl. SQL against the schema)
+        run: bun run typecheck
+
+      # ponytail: no lint step yet. `bun lint` exists only in Bun canary (used locally), not in
+      # stable 1.4.4. Add `- run: bun lint` once a stable release ships it.
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bun run build

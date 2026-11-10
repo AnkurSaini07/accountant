@@ -5,6 +5,11 @@
 // call the API mock `fetch` explicitly instead of relying on happy-dom's.
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { afterEach, expect } from "bun:test";
+import { s2Plugin } from "../../../scripts/s2-plugin.ts";
+
+// Same S2 style-macro handling as the dev server and build. Without it, `style()` is undefined
+// at runtime in stable Bun (only some canaries run the macro on their own).
+Bun.plugin(s2Plugin);
 
 const BUN_GLOBALS = [
   "fetch", "Request", "Response", "Headers", "FormData", "Blob", "File", "URL", "URLSearchParams",
