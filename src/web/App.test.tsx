@@ -1,27 +1,88 @@
 // Component test pattern for every screen: render, find elements by role/label (never CSS classes,
 // which React Spectrum generates), interact with userEvent, assert on what the user sees.
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
-import { App } from "./App.tsx";
+import { MemoryRouter } from "react-router";
+import { Shell } from "./App.tsx";
+import { NAV, sectionOf } from "./routes.tsx";
 
-describe("App", () => {
-  test("greets the typed party name", async () => {
-    const user = userEvent.setup();
-    render(<App />);
+function renderAt(path: string) {
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Shell />
+    </MemoryRouter>,
+  );
+  return { user: userEvent.setup(), nav: within(screen.getByRole("treegrid", { name: "Sections" })) };
+}
 
-    await user.type(screen.getByRole("textbox", { name: "Party name" }), "Sharma Steels");
-    await user.click(screen.getByRole("button", { name: "Greet" }));
+const heading = () => screen.getByRole("heading", { level: 1 });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Hello, Sharma Steels");
+/** Expected FY labels, newest first (Indian FY starts 1 April), computed independently of App.tsx. */
+function recentYears(count = 2): [string, string, ...string[]] {
+  const now = new Date();
+  const start = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  return Array.from({ length: count }, (_, i) => `${start - i}-${String((start - i + 1) % 100).padStart(2, "0")}`) as [string, string, ...string[]];
+}
+
+describe("app layout", () => {
+  test("lists every section and marks the current one", () => {
+    const { nav } = renderAt("/");
+    for (const { label } of NAV) expect(nav.getByRole("link", { name: label })).toBeInTheDocument();
+    expect(nav.getByRole("link", { name: "Dashboard" }).closest("[aria-current]")).not.toBeNull();
+    expect(heading()).toHaveTextContent("Dashboard");
   });
 
-  test("falls back to 'world' when no name is typed", async () => {
-    const user = userEvent.setup();
-    render(<App />);
+  test("navigates between sections without leaving the app", async () => {
+    const { user, nav } = renderAt("/");
+    await user.click(nav.getByRole("link", { name: "Purchase" }));
+    expect(heading()).toHaveTextContent("Purchase");
+    expect(nav.getByRole("link", { name: "Purchase" }).closest("[aria-current]")).not.toBeNull();
+    expect(nav.getByRole("link", { name: "Dashboard" }).closest("[aria-current]")).toBeNull();
+  });
 
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Greet" }));
-    expect(screen.getByRole("status")).toHaveTextContent("Hello, world");
+  test("is keyboard navigable", async () => {
+    const { user } = renderAt("/");
+    await user.tab();
+    expect(document.activeElement).toHaveTextContent("Dashboard");
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    expect(heading()).toHaveTextContent("Purchase");
+  });
+
+  test("deep links highlight their section", () => {
+    const { nav } = renderAt("/sales/invoices/42");
+    expect(heading()).toHaveTextContent("Sales");
+    expect(nav.getByRole("link", { name: "Sales" }).closest("[aria-current]")).not.toBeNull();
+  });
+
+  test("unknown paths show a not-found page", () => {
+    renderAt("/no-such-page");
+    expect(heading()).toHaveTextContent("Page not found");
+  });
+
+  test("header shows the company and lets the user switch financial year", async () => {
+    const { user } = renderAt("/");
+    expect(screen.getByText("My Company")).toBeInTheDocument();
+    const picker = () => screen.getByRole("button", { name: /Financial year/ });
+
+    const [current, previous] = recentYears();
+    expect(picker()).toHaveTextContent(current);
+
+    await user.click(picker());
+    const listbox = within(screen.getByRole("listbox"));
+    expect(listbox.getAllByRole("option").map((o) => o.textContent)).toEqual(recentYears(3));
+    await user.click(listbox.getByRole("option", { name: previous }));
+
+    expect(picker()).toHaveTextContent(previous);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("sectionOf", () => {
+  test("maps any path to its top-level section", () => {
+    expect(sectionOf("/")).toBe("/");
+    expect(sectionOf("/sales")).toBe("/sales");
+    expect(sectionOf("/sales/invoices/42")).toBe("/sales");
+    expect(sectionOf("/unknown/x")).toBe("/");
   });
 });

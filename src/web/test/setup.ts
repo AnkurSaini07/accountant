@@ -20,6 +20,13 @@ GlobalRegistrator.register({
 });
 for (const [key, descriptor] of saved) if (descriptor) Object.defineProperty(globalThis, key, descriptor);
 
+// happy-dom does no layout, so every element measures 0×0 and React Spectrum's virtualized
+// collections (Picker, ComboBox, TableView…) render only one row. Give elements a size, as the
+// React Spectrum testing docs recommend.
+for (const prop of ["clientWidth", "clientHeight"] as const) {
+  Object.defineProperty(HTMLElement.prototype, prop, { configurable: true, get: () => 1000 });
+}
+
 // Imported only now: Testing Library binds `screen` to the global document when it is first loaded,
 // so a static import (evaluated before register() above) would leave it with no document.
 const { default: _default, ...matchers } = await import("@testing-library/jest-dom/matchers");
