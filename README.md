@@ -33,7 +33,7 @@ Needs Docker (e.g. [OrbStack](https://orbstack.dev)).
 
 ```bash
 cp .env.example .env                       # then set POCKET_ID_ENCRYPTION_KEY=$(openssl rand -base64 32)
-bun run services:up                        # Postgres on :5432, Pocket ID on http://localhost:1411
+bun run services:up                        # Postgres on :5433, Pocket ID on http://localhost:1411
 ```
 
 First run of Pocket ID: open http://localhost:1411/setup and register the admin passkey. Then in the Pocket ID admin:
