@@ -9,7 +9,7 @@ bun install
 To run:
 
 ```bash
-bun run index.ts
+bun run dev     # http://localhost:3000/api/health
 ```
 
 To type check:
