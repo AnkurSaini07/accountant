@@ -1,0 +1,3 @@
+# Bundler plugins for the Bun.serve dev server (HTML imports). Bun.build uses scripts/build.ts.
+[serve.static]
+plugins = ["./scripts/s2-plugin.ts"]
