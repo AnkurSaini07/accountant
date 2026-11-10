@@ -1,6 +1,10 @@
+# Reylo: lets `bun src/server/index.ts` import .sql files (typed queries run through Bun.sql).
+preload = ["reylo/register"]
+
 # Bundler plugins for the Bun.serve dev server (HTML imports). Bun.build uses scripts/build.ts.
 [serve.static]
 plugins = ["./scripts/s2-plugin.ts"]
 
+# bun test reads its own preload list, not the top-level one.
 [test]
-preload = ["./src/web/test/setup.ts"]
+preload = ["reylo/register", "./src/web/test/setup.ts"]

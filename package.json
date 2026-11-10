@@ -6,7 +6,7 @@
     "dev": "bun --use-system-ca --hot src/server/index.ts",
     "start": "bun --use-system-ca src/server/index.ts",
     "test": "bun test",
-    "typecheck": "bun check",
+    "typecheck": "tsc --noEmit --runExternalCode",
     "lint:fix": "bun lint --fix",
     "services:up": "docker compose up -d --wait",
     "services:down": "docker compose down",
@@ -20,15 +20,14 @@
     "@types/bun": "latest",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "typescript": "7.1.0-dev.20261106.1",
     "unplugin-parcel-macros": "0.2.0"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
   },
   "dependencies": {
     "@react-spectrum/s2": "^1.8.2",
     "hono": "4.13.17",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "reylo": "0.7.0"
   }
 }
