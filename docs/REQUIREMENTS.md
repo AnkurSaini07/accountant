@@ -15,9 +15,12 @@ to use on the shop floor and office, and can be extended without Tally licensing
 - Track stock of raw material and finished goods, including material sent out on job work.
 - Produce the reports the CA needs (GSTR-1, GSTR-3B summaries, ledgers, trial balance, P&L, balance sheet).
 - Move existing masters and opening balances from Tally.
+- Make monthly salaries: employee records, salary calculation with PF/ESI/LWF, payslips, bank transfer sheet.
+- Be ready for e-invoicing, assuming turnover will cross ₹5 crore.
 
 ### Non-goals (v1)
-- Payroll / attendance, manufacturing BOM & production planning, multi-currency, multi-branch consolidation.
+- Full HR/payroll: daily attendance, biometric integration, leave management, Form 16 / income-tax computation, gratuity and bonus calculation.
+- Manufacturing BOM & production planning, multi-currency, multi-branch consolidation.
 - Direct filing on the GST portal (we export data; the CA files).
 - A mobile app (the web UI must work on a phone browser, though).
 
@@ -25,13 +28,14 @@ to use on the shop floor and office, and can be extended without Tally licensing
 
 | Role | Who | Can do |
 |---|---|---|
-| **Admin** | Owner | Everything, including company settings, deleting/cancelling finalized documents |
-| **Accountant** | Office / CA staff | All documents, vouchers, reports; cannot manage users |
+| **Admin** | Owner | Everything, including company settings, deleting/cancelling finalized documents, payroll |
+| **Accountant** | Office / CA staff | All documents, vouchers, reports, payroll; cannot change company settings |
 | **Operator** | Dispatch / store | Create challans, GRNs, view stock; no accounting or reports |
 | **Viewer** | Read-only | View documents and reports |
 
 Users and their roles live in **Pocket ID** (the OAuth/OIDC server, §4.2). A role is a Pocket ID
 group: `accountant-admin`, `accountant-accountant`, `accountant-operator`, `accountant-viewer`.
+Operators and viewers never see payroll or employee data.
 
 ## 3. Domain glossary
 
@@ -49,6 +53,10 @@ group: `accountant-admin`, `accountant-accountant`, `accountant-operator`, `acco
 | **Ledger** | An account (party, bank, cash, sales, purchase, tax, expense…). Grouped like Tally (Sundry Debtors, Sundry Creditors, Duties & Taxes, …). |
 | **FY** | Indian financial year, 1 April – 31 March, labelled e.g. `2026-27`. |
 | **Place of supply** | Decides tax type: same state as company → CGST + SGST; other state → IGST. Company state = Haryana (06). |
+| **E-invoice / IRN** | B2B invoices reported to the government's Invoice Registration Portal (IRP), which returns an Invoice Reference Number (IRN) and a signed QR code to print on the invoice. Mandatory above ₹5 crore aggregate turnover. |
+| **Payroll run** | One month's salary calculation for all active employees, finalized (locked) before payment. |
+| **PF / ESI / LWF** | Statutory deductions: Employees' Provident Fund, Employees' State Insurance, Haryana Labour Welfare Fund. Employer pays a matching/extra share. |
+| **Paid days** | Days an employee is paid for in the month (present + paid holidays/weekly offs). Salary is prorated on paid days. |
 
 ## 4. Functional requirements
 
@@ -80,7 +88,7 @@ Priority: **P0** = needed to stop using Tally for daily billing, **P1** = needed
 - FR-4.1 **Quotation**: party, date, validity, line items (item, description, qty, unit, rate, discount %, GST rate), terms, notes. Statuses: Draft → Sent → Accepted / Rejected / Expired. Convert to Sales Order or directly to Invoice.
 - FR-4.2 **Sales Order**: from quotation or fresh; customer PO number & date; tracks pending quantity as challans/invoices are made against it.
 - FR-4.3 **Delivery Challan**: from SO or fresh; challan type (§3); vehicle number, transporter, e-way bill number; ship-to address. Reduces stock. Job-work and returnable challans track quantity returned.
-- FR-4.4 **Tax Invoice**: from challan(s), SO or fresh. Must carry everything CGST Rule 46 needs: supplier & recipient GSTIN, invoice number & date, place of supply, ship-to, HSN per line, taxable value, CGST/SGST or IGST rate & amount, reverse-charge flag, total in figures and words (Indian format: lakh/crore), signature. Round-off to nearest rupee posted to a Round Off ledger.
+- FR-4.4 **Tax Invoice**: from challan(s), SO or fresh. Must carry everything CGST Rule 46 needs: supplier & recipient GSTIN, invoice number & date, place of supply, ship-to, HSN per line (6 digits on B2B invoices once turnover is above ₹5 crore, a company setting), taxable value, CGST/SGST or IGST rate & amount, reverse-charge flag, total in figures and words (Indian format: lakh/crore), signature. Round-off to nearest rupee posted to a Round Off ledger.
 - FR-4.5 Invoices are **Draft** until **Finalized**. Finalized invoices cannot be edited — only cancelled (admin) or adjusted by credit note. Cancelled numbers stay used.
 - FR-4.6 **Credit Note** against an invoice (sales return / rate difference); returned goods go back to stock.
 - FR-4.7 TCS / TDS fields on invoice (P2).
@@ -117,14 +125,57 @@ Priority: **P0** = needed to stop using Tally for daily billing, **P1** = needed
 - FR-9.5 GSTR-3B summary (outward tax, ITC).
 - FR-9.6 Dashboard: today's/month's sales, receivables due, payables due, low stock.
 
-### 4.10 GST integrations (P2)
-- FR-10.1 E-way bill JSON export for bulk upload (required for consignments above ₹50,000).
-- FR-10.2 E-invoice (IRN + QR) — only required if aggregate turnover exceeds ₹5 crore; confirm applicability (§9).
+### 4.10 GST integrations
+- FR-10.1 *(P2)* E-way bill JSON export for bulk upload (required for consignments above ₹50,000).
+- FR-10.2 *(P1)* **E-invoicing.** We assume turnover will cross ₹5 crore, so the invoice flow is designed for it from the start and switched on by a company setting:
+  - Build the e-invoice JSON (government INV-01 schema) from a finalized B2B invoice, credit note or debit note, and validate it before sending.
+  - Send it to the IRP through a GSP (GST Suvidha Provider) or direct API access. Credentials are config, not code.
+  - Store the IRN, acknowledgement number and date, and the signed QR code on the invoice. Print the IRN and QR on the invoice.
+  - Cancel the IRN within the IRP's 24-hour window when an invoice is cancelled. After that, only a credit note can correct it.
+  - If the IRP is down, the invoice stays *Finalized — IRN pending*, with a retry action. It must not be printed as final without its IRN.
+  - Report within 30 days of the invoice date (the IRP rejects late reporting once turnover is ₹10 crore or more). The app warns about pending IRNs.
+- FR-10.3 *(P2)* E-way bill generation through the e-invoice API (Part B from the IRN).
 
 ### 4.11 Migration from Tally (P1)
 - FR-11.1 Import ledgers/parties and stock items from a Tally XML export.
 - FR-11.2 Import opening balances (ledger and stock) as of the cut-over date.
 - FR-11.3 Run both systems in parallel for one month before switching off Tally.
+
+### 4.12 Salary / basic payroll (P1)
+Scope is "make the monthly salary correctly", not HR. Access is limited to Admin and Accountant.
+- FR-12.1 **Employee master**:
+  - Identity: code, name, father's/spouse's name, gender, date of birth, date of joining, date of leaving.
+  - Work: department, designation, phone, address.
+  - IDs: PAN, Aadhaar (stored encrypted, always shown masked `XXXX-XXXX-1234`), UAN (PF), ESIC IP number.
+  - Bank account number and IFSC.
+  - Status: active / left. Employees are deactivated, never deleted.
+- FR-12.2 **Pay type**: *Monthly* (fixed monthly salary, prorated by paid days) or *Daily wage* (rate × paid days), since both are common on a factory floor.
+- FR-12.3 **Salary structure** per employee, with an effective-from date so increments keep history:
+  - Earnings: Basic, DA, HRA, Conveyance, Other allowance, or a daily rate.
+  - Flags: PF applicable, ESI applicable, LWF applicable.
+  - Optional fixed monthly TDS.
+- FR-12.4 **Statutory settings are data**, effective-dated like GST rates, because rates and ceilings change:
+  - PF: employee 12% and employer 12% (split 3.67% EPF + 8.33% EPS) of PF wages (Basic + DA). Option to cap PF wages at the ₹15,000 ceiling.
+  - ESI: employee 0.75% and employer 3.25% of gross, when gross is at or below the ₹21,000 threshold.
+  - Haryana LWF: employee and employer amounts. Haryana has no professional tax.
+  - Overtime multiplier: 2× the ordinary rate, per the Factories Act.
+  - Minimum wage per skill category: the app warns when pay is below it, but doesn't block.
+- FR-12.5 **Payroll run** per month:
+  1. Create the run for all active employees.
+  2. Enter paid days, OT hours, advance recovery and one-off additions or deductions per employee in one editable grid, typed or pasted from Excel.
+  3. Calculate gross, PF, ESI, LWF, TDS and net pay. Rupee rounding happens on net pay.
+  4. Review the totals, then **finalize**, which locks the run.
+  5. Corrections after that are made in the next month's run as arrears or adjustments.
+- FR-12.6 **Advances / loans**: record an advance paid to an employee with a monthly recovery amount. The recovery appears in each payroll run until it's cleared.
+- FR-12.7 **Outputs**:
+  - Payslip per employee (print / PDF).
+  - Salary register for the month.
+  - Bank transfer sheet (CSV of name, account, IFSC, amount) for bulk upload to net banking.
+  - Cash-paid list for employees without a bank account.
+- FR-12.8 **Accounting**:
+  - Finalizing a run posts one journal: Salary & Wages Dr and Employer PF/ESI/LWF Dr, against Salary Payable, PF Payable, ESI Payable, LWF Payable, TDS Payable and Employee Advances Cr.
+  - Paying salaries and depositing PF/ESI use normal payment vouchers.
+- FR-12.9 *(P2)* PF ECR text file and ESI monthly contribution file for upload to the EPFO and ESIC portals.
 
 ## 5. Non-functional requirements
 
@@ -167,6 +218,8 @@ docs/            this document, ADRs
 - `documents` (one table, `type` = QUOTATION | SALES_ORDER | DELIVERY_CHALLAN | TAX_INVOICE | CREDIT_NOTE | PURCHASE_ORDER | GRN | PURCHASE_BILL | DEBIT_NOTE) + `document_lines` + `document_links` (which document was created from which, with quantities)
 - `vouchers` + `voucher_entries` (double-entry; invoices post one voucher each)
 - `stock_movements`
+- `einvoices` (invoice id, IRN, ack no/date, signed QR, status, last error)
+- `employees`, `salary_structures` (effective-dated), `statutory_rates` (effective-dated), `employee_advances`, `payroll_runs` + `payroll_lines`
 
 ## 7. Phases / milestones
 
@@ -178,9 +231,10 @@ docs/            this document, ADRs
 | **M3 Purchase** | PO, GRN, purchase bill, debit note | Purchase side covered |
 | **M4 Accounting** | Vouchers, auto-posting, receipts/payments, financial reports | Books kept in the app |
 | **M5 Inventory** | Stock ledger, stock summary, low stock | Stock tracked |
-| **M6 GST reports** | Registers, GSTR-1, GSTR-3B, e-way bill export | CA can file from app data |
+| **M6 GST reports** | Registers, GSTR-1, GSTR-3B, e-way bill export, e-invoicing | CA can file from app data; e-invoice ready |
 | **M7 Production** | Backups, audit log, deployment, MCP server | Safe to run for real |
 | **M8 Tally migration** | Import masters & opening balances | Tally switched off |
+| **M9 Payroll** | Employees, statutory settings, payroll run, payslips, bank sheet, salary posting | Monthly salary made in the app |
 
 ## 8. Risks
 
@@ -191,12 +245,19 @@ docs/            this document, ADRs
 - **R-6 Passkeys need HTTPS.** WebAuthn works on `localhost` but needs HTTPS and a real hostname elsewhere, so an office-LAN deployment needs a domain + TLS (e.g. a reverse proxy with a certificate), not a bare IP. Staff need a device with passkey support. For people without one, Pocket ID's one-time login codes are the fallback.
 - **R-7 Pocket ID is a second service** to run, back up and keep updated. It is small (one container with its own SQLite volume), but it is a dependency for every login.
 - **R-5 Tally data quality.** Old masters may have duplicates or missing GSTINs; the import produces an exceptions report rather than failing.
+- **R-8 E-invoice API access.** Calling the IRP needs credentials from a GSP (a paid service) or direct API access from the e-invoice portal. Without them we can only build and validate the JSON. Get sandbox credentials before starting #96.
+- **R-9 Employee personal data.** Aadhaar, PAN and bank details are sensitive. Aadhaar is encrypted at rest and masked in the UI and API, payroll is role-restricted, and backups are protected like the rest of the database.
+- **R-10 Statutory rates drift.** PF/ESI/LWF rates, ceilings and minimum wages change (Haryana revises minimum wages twice a year). They are effective-dated data, and the CA checks them each April and October.
 
 ## 9. Open questions (to confirm with the owner / CA)
 
-1. Annual turnover — above ₹5 crore? (decides e-invoicing, and 4- vs 6-digit HSN on invoices)
+1. ~~Annual turnover above ₹5 crore?~~ **Decided:** assume it will cross ₹5 crore. E-invoicing and 6-digit HSN are built in, behind a company setting.
 2. Is there job work in or out (material sent to/received from other units)? How often?
-3. Is TDS/TCS deducted on any sales or purchases?
+3. Is TDS/TCS deducted on any sales or purchases? (If turnover crosses ₹10 crore, TDS under section 194Q applies to large purchases.)
+8. Does the CA already use a GSP (e.g. ClearTax, Masters India, IRIS) for e-invoicing, or should we apply for direct IRP API access?
+9. Payroll: how many employees, how many on monthly salary vs daily wage?
+10. Payroll: is the factory registered for PF and ESI? Any contract labour paid through a contractor? (That stays out of scope.)
+11. Payroll: how is salary paid (bank transfer, cash or both), and on which day? Is overtime paid?
 4. How many people will use it at once, and from where (office LAN only, or remote)?
 5. Where will production run — a PC in the office, or a cloud VM?
 6. Which Tally version, and can we get an XML export of masters?
