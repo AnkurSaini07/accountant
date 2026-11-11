@@ -6,6 +6,7 @@ import { todayInIndia } from "../../shared/fy.ts";
 import { formatQty } from "../../shared/quantity.ts";
 import type { DocumentInput, DocumentType } from "../../shared/schemas/document.ts";
 import { ValidationError } from "../errors.ts";
+import acceptSources from "./accept_sources.sql";
 import insertLinks from "./insert_links.sql";
 import lockLines from "./lock_lines.sql";
 import pendingQuery from "./pending.sql";
@@ -68,6 +69,7 @@ export async function linkLines(tx: SQL, { companyId, type, partyId, lines, line
 
   const rows = lines.flatMap((l, i) => (l.from_line_id ? [{ from_line_id: l.from_line_id, to_line_id: lineIds[i]!, qty: l.qty }] : []));
   await insertLinks.run(tx, { rows });
+  await acceptSources.run(tx, { line_ids: ids });
 }
 
 /**
@@ -80,6 +82,10 @@ export async function draftFrom(db: SQL, { companyId, type, sourceIds }: { compa
   const found = new Set(lines.map((l) => l.document_id));
   const missing = sourceIds.filter((id) => !found.has(id));
   if (missing.length) throw new ValidationError(`Document ${missing.join(", ")} wasn't found.`, { source_ids: ["Choose documents from the list."] });
+  const wrong = lines.find((l) => !SOURCES[type]?.includes(l.type as DocumentType));
+  if (wrong) throw new ValidationError(`A ${LABELS[type]} can't be made from a ${LABELS[wrong.type as DocumentType]}.`, { source_ids: [`Choose documents a ${LABELS[type]} is made from.`] });
+  const dead = lines.find((l) => !CONVERTIBLE.has(l.status));
+  if (dead) throw new ValidationError(`The ${LABELS[dead.type as DocumentType]} ${dead.number ?? "draft"} is ${dead.status}, so it can't be converted.`, { source_ids: [`${dead.number ?? "A draft"} is ${dead.status}.`] });
   if (new Set(lines.map((l) => l.party_id)).size > 1) throw new ValidationError("These documents are for different parties.", { source_ids: ["Choose documents for one party."] });
   const open = lines.filter((l) => l.pending > 0);
   if (!open.length) throw new ValidationError("Nothing is pending on these documents.", { source_ids: ["Everything on them has been converted already."] });
