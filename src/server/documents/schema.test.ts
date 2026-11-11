@@ -37,6 +37,8 @@ describe("documents", () => {
     });
     const shipped = await doc({ shipping_address: { label: "Plant 2", address: "", city: "Faridabad", pincode: null, state_code: "06" } });
     expect((await get(shipped.id))!.place_of_supply).toBe("06"); // goods are supplied where they're delivered
+    // Purchases come to us: our state (the company's is 06), not the Delhi supplier's (0012).
+    for (const type of ["purchase_order", "grn", "purchase_bill", "debit_note"]) expect((await get((await doc({ type })).id))!.place_of_supply).toBe("06");
   });
 
   test("a draft follows the party; once issued it keeps the party as it was", async () => {
