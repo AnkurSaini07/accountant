@@ -1,7 +1,9 @@
 // A document register (quotations, orders, challans, invoices…): the header FY's documents, newest
 // first, with search, a status filter and paging in the URL (?q=&status=&page=). Rows open the
 // document. Each type's page passes its loader, labels and any extra columns.
+import { parseDate } from "@internationalized/date";
 import { Badge } from "@react-spectrum/s2/Badge";
+import { DatePicker } from "@react-spectrum/s2/DatePicker";
 import { LinkButton } from "@react-spectrum/s2/LinkButton";
 import { Picker, PickerItem } from "@react-spectrum/s2/Picker";
 import { SearchField } from "@react-spectrum/s2/SearchField";
@@ -19,7 +21,7 @@ import { PAGE_SIZE, Pager, useListUrl } from "./ListUrl.tsx";
 
 /** One row of any document list (documents/list.sql). */
 export type ListRow = InferResponseType<typeof client.api.quotations.$get, 200>["quotations"][number];
-export type ListQuery = { fy: string; q?: string; status?: string; page: string; page_size: string };
+export type ListQuery = { fy: string; q?: string; status?: string; from?: string; to?: string; page: string; page_size: string };
 export type BadgeVariant = "neutral" | "informative" | "positive" | "negative" | "notice";
 export type StatusInfo = Record<string, { label: string; badge: BadgeVariant }>;
 
@@ -49,6 +51,10 @@ export const StatusBadge = ({ statuses, status }: { statuses: StatusInfo; status
 export function DocumentList({ title, noun, basePath, newLabel, statuses, load, columns = [], writers = ["admin", "accountant"], actions }: Props) {
   const { params, q, pageNo, update, text, setText } = useListUrl();
   const status = Object.keys(statuses).find((s) => s === params.get("status"));
+  // ?date_from=&date_to= (ISO); a range that runs backwards isn't sent, and the To box says why.
+  const iso = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(params.get(k) ?? "") ? params.get(k)! : null);
+  const [from, to] = [iso("date_from"), iso("date_to")];
+  const backwards = !!from && !!to && from > to;
   const fy = parseFyLabel(useAtomValue(financialYearAtom));
   const role = useUser().role;
 
@@ -56,14 +62,15 @@ export function DocumentList({ title, noun, basePath, newLabel, statuses, load, 
   useEffect(() => {
     let current = true; // a slow older response must not overwrite a newer one
     setData(null);
-    load({ fy: String(fy), ...(q && { q }), ...(status && { status }), page: String(pageNo), page_size: String(PAGE_SIZE) }).then(
+    if (backwards) return setData({ total: 0, rows: [] });
+    load({ fy: String(fy), ...(q && { q }), ...(status && { status }), ...(from && { from }), ...(to && { to }), page: String(pageNo), page_size: String(PAGE_SIZE) }).then(
       (d) => current && setData(d),
       () => {}, // failures toast
     );
     return () => {
       current = false;
     };
-  }, [fy, q, status, pageNo]); // eslint-disable-line react-hooks/exhaustive-deps -- load is fixed per page
+  }, [fy, q, status, from, to, pageNo]); // eslint-disable-line react-hooks/exhaustive-deps -- load is fixed per page
 
   return (
     <div className={page}>
@@ -92,6 +99,8 @@ export function DocumentList({ title, noun, basePath, newLabel, statuses, load, 
             )),
           ]}
         </Picker>
+        <DatePicker label="From" value={from ? parseDate(from) : null} onChange={(v) => update({ date_from: v?.toString() ?? null })} styles={style({ width: 180 })} />
+        <DatePicker label="To" value={to ? parseDate(to) : null} onChange={(v) => update({ date_to: v?.toString() ?? null })} isInvalid={backwards} errorMessage="Pick a date on or after From." styles={style({ width: 180 })} />
       </div>
       <TableView aria-label={title} loadingState={data ? "idle" : "loading"} styles={style({ minHeight: 320 })}>
         <TableHeader>
@@ -108,7 +117,7 @@ export function DocumentList({ title, noun, basePath, newLabel, statuses, load, 
             <Column key="total" align="end" minWidth={130}>Total</Column>,
           ]}
         </TableHeader>
-        <TableBody items={data?.rows ?? []} renderEmptyState={() => (data ? (q || status ? `No ${noun} match. Try another search or status.` : `No ${noun} in this financial year yet.`) : null)}>
+        <TableBody items={data?.rows ?? []} renderEmptyState={() => (data ? (q || status || from || to ? `No ${noun} match. Try another search, status or dates.` : `No ${noun} in this financial year yet.`) : null)}>
           {(r) => (
             <Row id={r.id} href={`${basePath}/${r.id}`}>
               {[

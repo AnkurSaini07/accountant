@@ -55,9 +55,9 @@ describe("app layout", () => {
   });
 
   test("deep links highlight their section", async () => {
-    const { nav } = await renderAt("/sales/invoices/42");
-    expect(heading()).toHaveTextContent("Sales");
-    expect(nav.getByRole("link", { name: "Sales" }).closest("[aria-current]")).not.toBeNull();
+    const { nav } = await renderAt("/purchase/bills/42"); // a section not built yet: its placeholder
+    expect(heading()).toHaveTextContent("Purchase");
+    expect(nav.getByRole("link", { name: "Purchase" }).closest("[aria-current]")).not.toBeNull();
   });
 
   test("unknown paths show a not-found page", async () => {
