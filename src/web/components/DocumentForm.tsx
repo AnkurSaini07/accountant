@@ -3,8 +3,10 @@
 // can start from source documents (?from=12,15: an order from quotations…). Anything past draft, or
 // seen by someone who can't write it, is read-only. Each type's page passes its API and labels.
 import { parseDate } from "@internationalized/date";
+import { AlertDialog } from "@react-spectrum/s2/AlertDialog";
 import { Button } from "@react-spectrum/s2/Button";
 import { DatePicker } from "@react-spectrum/s2/DatePicker";
+import { DialogContainer } from "@react-spectrum/s2/Dialog";
 import { Form } from "@react-spectrum/s2/Form";
 import { LinkButton } from "@react-spectrum/s2/LinkButton";
 import { ProgressCircle } from "@react-spectrum/s2/ProgressCircle";
@@ -75,6 +77,8 @@ const th = style({ font: "ui-sm", color: "gray-700", textAlign: "start", padding
 const thEnd = style({ font: "ui-sm", color: "gray-700", textAlign: "end", paddingX: 8, paddingY: 4 });
 const td = style({ paddingX: 8, paddingY: 4, borderTopWidth: 1, borderTopStyle: "solid", borderColor: "gray-200" });
 const tdEnd = style({ paddingX: 8, paddingY: 4, borderTopWidth: 1, borderTopStyle: "solid", borderColor: "gray-200", textAlign: "end", fontVariantNumeric: "tabular-nums" });
+// Moves that can't be undone ask first.
+const FINAL = new Set(["cancelled", "rejected", "expired"]);
 const capital = (s: string) => s[0]!.toUpperCase() + s.slice(1);
 const rupees = (paise: number) => (paise ? formatRupees(paise).replaceAll(",", "") : "");
 
@@ -137,6 +141,7 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
   const [notes, setNotes] = useState(start?.notes ?? "");
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null); // a final move waiting for "are you sure?"
 
   async function run(action: () => Promise<Doc>, message: string) {
     setBusy(true);
@@ -224,7 +229,7 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
             </Button>
           )}
           {moves.map((to) => (
-            <Button key={to} variant={moves[0] === to && to !== "cancelled" ? "accent" : "secondary"} /* cancelling is final: never the primary button */ isDisabled={busy} onPress={() => void move(to)}>
+            <Button key={to} variant={moves[0] === to && to !== "cancelled" ? "accent" : "secondary"} /* cancelling is final: never the primary button */ isDisabled={busy} onPress={() => (FINAL.has(to) ? setConfirming(to) : void move(to))}>
               {config.moveLabels[to] ?? config.statuses[to]?.label ?? to}
             </Button>
           ))}
@@ -243,6 +248,18 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
           </LinkButton>
         </div>
       </Form>
+      <DialogContainer onDismiss={() => setConfirming(null)}>
+        {doc && confirming && (
+          <AlertDialog
+            variant="destructive"
+            title={`Mark ${label} ${doc.number} as ${config.statuses[confirming]?.label.toLowerCase() ?? confirming}?`}
+            primaryActionLabel={config.moveLabels[confirming] ?? config.statuses[confirming]?.label ?? confirming}
+            cancelLabel="Keep it"
+            onPrimaryAction={() => void move(confirming)}>
+            This can't be undone.
+          </AlertDialog>
+        )}
+      </DialogContainer>
       {doc && config.progress && status !== "draft" && (
         <section aria-label="Progress">
           <h2 className={sectionTitle}>{config.progress} so far</h2>

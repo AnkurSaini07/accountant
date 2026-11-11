@@ -108,6 +108,30 @@ describe("Sales → Orders", () => {
     expect((sent[0]!.body as { lines: Record<string, unknown>[] }).lines[0]).toEqual({ item_id: 2, description: "", qty: 400, rate: 845_00, discount_bp: 0, gst_rate: 18 });
   });
 
+  test("final moves ask first: Keep it sends nothing; confirming cancels", async () => {
+    const { user, sent } = await open("/sales/orders/9", {
+      "GET /sales-orders/9": doc("sales_order", "finalized"),
+      "POST /sales-orders/9/status": doc("sales_order", "cancelled"),
+    });
+    await user.click(screen.getByRole("button", { name: "Cancel order" }));
+    const dialog = await screen.findByRole("alertdialog", { name: /^Mark sales order/ });
+    expect(dialog).toHaveTextContent("Mark sales order SO/26-27/0004 as cancelled?This can't be undone.");
+    await user.click(within(dialog).getByRole("button", { name: "Keep it" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog", { name: /^Mark/ })).not.toBeInTheDocument());
+    expect(sent).toEqual([]);
+    await user.click(screen.getByRole("button", { name: "Cancel order" }));
+    await user.click(within(await screen.findByRole("alertdialog", { name: /^Mark/ })).getByRole("button", { name: "Cancel order" }));
+    expect(await screen.findByText("This sales order is cancelled, so it can't be edited.")).toBeInTheDocument();
+    expect(sent).toEqual([{ method: "POST", path: "/api/sales-orders/9/status", body: { status: "cancelled" } }]);
+  });
+
+  test("a quotation's Rejected asks too (Mark as sent goes straight through: QuotationForm tests)", async () => {
+    const { user, sent } = await open("/sales/quotations/9");
+    await user.click(screen.getByRole("button", { name: "Rejected" }));
+    expect(await screen.findByRole("alertdialog", { name: "Mark quotation QTN/26-27/0009 as rejected?" })).toHaveTextContent("This can't be undone.");
+    expect(sent).toEqual([]);
+  });
+
   test("a draft quotation can't be ordered yet", async () => {
     await open("/sales/quotations/9", { "GET /quotations/9": doc("quotation", "draft") });
     expect(screen.getByRole("button", { name: "Mark as sent" })).toBeInTheDocument();
