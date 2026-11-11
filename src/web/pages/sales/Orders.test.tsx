@@ -132,6 +132,41 @@ describe("Sales → Orders", () => {
     expect(sent).toEqual([]);
   });
 
+  test("From quotations: pick the customer, tick their open quotations, open one order from them all", async () => {
+    const asked: string[] = [];
+    const q = (id: number, status: string, pending: number) => ({ ...listRow(id, `QTN/26-27/000${id}`, status, 1000, pending), due_date: null });
+    const { user } = await open("/sales/orders", {
+      "GET /parties": { total: 1, page: 1, page_size: 20, parties: [{ id: 3, name: "Acme Castings Pvt Ltd", gstin: "06AAACA1234B1ZM", city: "Faridabad", state_code: "06", kind: "customer", phone: null, active: true }] },
+      "GET /sales-orders/new": (req: Request) => {
+        asked.push(new URL(req.url).search);
+        return DRAFT_FROM;
+      },
+      "GET /quotations": (req: Request) => {
+        asked.push(new URL(req.url).search);
+        return { total: 5, page: 1, page_size: 200, quotations: [q(1, "sent", 1000), q(2, "accepted", 400), q(3, "accepted", 0), q(4, "draft", 1000), q(5, "rejected", 1000)] };
+      },
+    });
+    await user.click(screen.getByRole("button", { name: "From quotations" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByRole("button", { name: "Create order" })).toBeDisabled();
+    await user.type(dialog.getByRole("combobox", { name: /Customer/ }), "acme");
+    await user.click(await screen.findByRole("option", { name: /Acme Castings/ }, { timeout: 2000 }));
+    await dialog.findByRole("checkbox", { name: /QTN\/26-27\/0001/ });
+    expect(asked[0]).toContain("party_id=3");
+    // Only sent / accepted with something left: not the fully ordered 3, the draft 4 or the rejected 5.
+    expect(dialog.getAllByRole("checkbox").map((c) => c.closest("label")?.textContent)).toEqual([
+      "QTN/26-27/0001 · 11 Nov 2026 · ₹14,750.00",
+      "QTN/26-27/0002 · 11 Nov 2026 · ₹14,750.00",
+    ]);
+    await user.click(dialog.getByRole("checkbox", { name: /0001/ }));
+    await user.click(dialog.getByRole("checkbox", { name: /0002/ }));
+    await waitFor(() => expect(dialog.getByRole("button", { name: "Create order" })).toBeEnabled());
+    await user.click(dialog.getByRole("button", { name: "Create order" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "New sales order" })).toBeInTheDocument();
+    expect(screen.getByText(/^Made from 1 pending line/)).toBeInTheDocument();
+    expect(asked.at(-1)).toBe("?from=1%2C2");
+  });
+
   test("a draft quotation can't be ordered yet", async () => {
     await open("/sales/quotations/9", { "GET /quotations/9": doc("quotation", "draft") });
     expect(screen.getByRole("button", { name: "Mark as sent" })).toBeInTheDocument();
@@ -144,5 +179,6 @@ describe("Sales → Orders", () => {
     cleanup();
     await open("/sales/orders", {}, "viewer");
     expect(screen.queryByRole("link", { name: "New sales order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "From quotations" })).not.toBeInTheDocument();
   });
 });

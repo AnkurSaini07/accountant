@@ -34,6 +34,7 @@ type Props = {
   load: (query: ListQuery) => Promise<{ total: number; rows: ListRow[] }>;
   columns?: { label: string; cell: (r: ListRow) => ReactNode }[]; // between Party and Status
   writers?: string[];
+  actions?: ReactNode; // more buttons beside New, for writers ("From quotations")
 };
 
 const page = style({ display: "flex", flexDirection: "column", gap: 16 });
@@ -45,7 +46,7 @@ export const StatusBadge = ({ statuses, status }: { statuses: StatusInfo; status
   <Badge variant={statuses[status]?.badge ?? "neutral"}>{statuses[status]?.label ?? status}</Badge>
 );
 
-export function DocumentList({ title, noun, basePath, newLabel, statuses, load, columns = [], writers = ["admin", "accountant"] }: Props) {
+export function DocumentList({ title, noun, basePath, newLabel, statuses, load, columns = [], writers = ["admin", "accountant"], actions }: Props) {
   const { params, q, pageNo, update, text, setText } = useListUrl();
   const status = Object.keys(statuses).find((s) => s === params.get("status"));
   const fy = parseFyLabel(useAtomValue(financialYearAtom));
@@ -69,9 +70,12 @@ export function DocumentList({ title, noun, basePath, newLabel, statuses, load, 
       <div className={head}>
         <h1 className={titleStyle}>{title}</h1>
         {writers.includes(role) && (
-          <LinkButton href={`${basePath}/new`} variant="accent">
-            {newLabel}
-          </LinkButton>
+          <div className={style({ display: "flex", gap: 12, flexWrap: "wrap" })}>
+            {actions}
+            <LinkButton href={`${basePath}/new`} variant="accent">
+              {newLabel}
+            </LinkButton>
+          </div>
         )}
       </div>
       <div className={filters}>
