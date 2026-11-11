@@ -4,7 +4,7 @@ with input as (
   select :company_id::integer as company_id, '%' || :q::nullable(text) || '%' as pattern,
     :include_inactive::boolean as include_inactive
 )
-select l.id, l.name, l.group_id, g.name as group_name, g.nature, l.is_system, l.active,
+select l.id, l.name, l.group_id, g.name as group_name, g.nature, l.is_system, l.party_id, l.active,
   count(*) over ()::int as total
 from input
 join ledgers l on l.company_id = input.company_id

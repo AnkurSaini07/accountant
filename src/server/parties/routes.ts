@@ -19,9 +19,16 @@ const listQuery = z.object({
 });
 const idParam = z.object({ id: z.coerce.number().int().positive() });
 
-// A second party with the same GSTIN: a 409 on the GSTIN field instead of a 500.
-const uniqueGstin = <T>(write: () => Promise<T>) =>
-  onConstraint({ parties_company_id_gstin_key: ["gstin", "A party with this GSTIN already exists."] }, write);
+// A second party with the same GSTIN, or a name another ledger has (each party gets a ledger named
+// after it, 0010_party_ledgers.sql): a 409 on that field instead of a 500.
+const uniqueFields = <T>(name: string, write: () => Promise<T>) =>
+  onConstraint(
+    {
+      parties_company_id_gstin_key: ["gstin", "A party with this GSTIN already exists."],
+      ledgers_company_name: ["name", `A party or ledger named ${name.trim()} already exists.`],
+    },
+    write,
+  );
 
 export function partyRoutes(db: SQL) {
   const found = async (companyId: number, id: number) => {
@@ -41,13 +48,15 @@ export function partyRoutes(db: SQL) {
     .get("/:id", validate("param", idParam), async (c) => c.json(await found(await currentCompanyId(db), c.req.valid("param").id)))
     .post("/", canWrite, validate("json", partyInput), async (c) => {
       const companyId = await currentCompanyId(db);
-      const id = await uniqueGstin(() => createParty(db, companyId, c.req.valid("json")));
+      const party = c.req.valid("json");
+      const id = await uniqueFields(party.name, () => createParty(db, companyId, party));
       return c.json(await found(companyId, id), 201);
     })
     .put("/:id", canWrite, validate("param", idParam), validate("json", partyInput), async (c) => {
       const companyId = await currentCompanyId(db);
       const { id } = c.req.valid("param");
-      if (!(await uniqueGstin(() => updateParty(db, companyId, id, c.req.valid("json"))))) throw new NotFoundError(`Party ${id} not found.`);
+      const party = c.req.valid("json");
+      if (!(await uniqueFields(party.name, () => updateParty(db, companyId, id, party)))) throw new NotFoundError(`Party ${id} not found.`);
       return c.json(await found(companyId, id));
     })
     .post("/:id/deactivate", canWrite, validate("param", idParam), async (c) => {
