@@ -6,7 +6,8 @@ import { parseDate } from "@internationalized/date";
 import { AlertDialog } from "@react-spectrum/s2/AlertDialog";
 import { Button } from "@react-spectrum/s2/Button";
 import { DatePicker } from "@react-spectrum/s2/DatePicker";
-import { DialogContainer } from "@react-spectrum/s2/Dialog";
+import { Checkbox } from "@react-spectrum/s2/Checkbox";
+import { ButtonGroup, Content, Dialog, DialogContainer, Heading } from "@react-spectrum/s2/Dialog";
 import { Form } from "@react-spectrum/s2/Form";
 import { LinkButton } from "@react-spectrum/s2/LinkButton";
 import { Picker, PickerItem } from "@react-spectrum/s2/Picker";
@@ -42,6 +43,7 @@ export type Body = { party_id: number; date: string; due_date: string | null; pa
   vehicle_no?: string | null;
   transporter?: string | null;
   eway_bill_no?: string | null;
+  reverse_charge?: boolean;
 };
 
 export type DocApi = {
@@ -50,6 +52,7 @@ export type DocApi = {
   update: (id: string, json: Body) => Promise<Doc>;
   move: (id: string, status: string) => Promise<Doc>;
   draftFrom?: (from: string) => Promise<Draft>;
+  cancel?: (id: string, reason: string) => Promise<Doc>; // admins, with a reason (invoices…)
 };
 
 export type DocConfig = {
@@ -72,7 +75,10 @@ export type DocConfig = {
   converts?: { label: string; when: readonly string[]; href: (doc: Doc) => string }[]; // "Create sales order" on a sent quotation
   writers?: string[];
   shipTo?: boolean; // a Ship to picker (challans, invoices)
-  challanTypes?: Record<string, string>; // a challan: its type (required) and transport details
+  challanTypes?: Record<string, string>; // a challan: its type (required)
+  transport?: boolean; // vehicle no., transporter, e-way bill no. (challans, invoices)
+  reverseCharge?: boolean; // the reverse-charge flag (invoices, bills)
+  confirm?: string[]; // more moves to ask about first, e.g. finalizing an invoice locks it
 };
 
 const page = style({ display: "flex", flexDirection: "column", gap: 24 });
@@ -156,6 +162,8 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
   const [vehicle, setVehicle] = useState(start?.vehicle_no ?? "");
   const [transporter, setTransporter] = useState(start?.transporter ?? "");
   const [eway, setEway] = useState(start?.eway_bill_no ?? "");
+  const [reverse, setReverse] = useState(start?.reverse_charge ?? false);
+  const [cancelling, setCancelling] = useState(false);
   const [terms, setTerms] = useState(start?.terms ?? "");
   const [notes, setNotes] = useState(start?.notes ?? "");
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -193,7 +201,9 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
     const json: Body = {
       party_id: party.id, date, due_date: due, party_ref: ref.trim() || null, party_ref_date: refDate, terms, notes, lines: body.lines,
       ...(config.shipTo && { shipping_address: shipTo }),
-      ...(config.challanTypes && { challan_type: challanType as Body["challan_type"], vehicle_no: vehicle.trim() || null, transporter: transporter.trim() || null, eway_bill_no: eway.trim() || null }),
+      ...(config.challanTypes && { challan_type: challanType as Body["challan_type"] }),
+      ...(config.transport && { vehicle_no: vehicle.trim() || null, transporter: transporter.trim() || null, eway_bill_no: eway.trim() || null }),
+      ...(config.reverseCharge && { reverse_charge: reverse }),
     };
     const result = await run(() => (doc ? api.update(String(doc.id), json) : api.create(json)), doc ? `${capital(label)} saved.` : `${capital(label)} created.`);
     if (!result) return false;
@@ -220,6 +230,7 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
       </div>
       {!canWrite && <p className={note}>You can view {config.plural}; ask an accountant or admin to change them.</p>}
       {canWrite && status !== "draft" && <p className={note}>This {label} is {statusLabel}, so it can't be edited.</p>}
+      {doc?.cancel_reason && <p className={note}>Cancelled{doc.cancelled_at ? ` on ${new Date(doc.cancelled_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}` : ""}: {doc.cancel_reason}. Its number stays used.</p>}
       {draft && <p className={note}>Made from {draft.lines.length === 1 ? "1 pending line" : `${draft.lines.length} pending lines`}. Change quantities to take less, or remove lines you don't need now.</p>}
       <Form
         validationErrors={errors}
@@ -240,19 +251,26 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
             <ShipToPicker partyId={party?.id ?? null} value={shipTo} onChange={setShipTo} isReadOnly={readOnly} />
           </div>
         )}
-        {config.challanTypes && (
+        {(config.challanTypes || config.transport) && (
           <div className={row}>
-            <Picker label="Challan type" name="challan_type" isRequired isDisabled={readOnly} selectedKey={challanType} onSelectionChange={(k) => setChallanType(k === null ? null : String(k))} styles={style({ width: 220 })}>
+            {config.challanTypes && <Picker label="Challan type" name="challan_type" isRequired isDisabled={readOnly} selectedKey={challanType} onSelectionChange={(k) => setChallanType(k === null ? null : String(k))} styles={style({ width: 220 })}>
               {Object.entries(config.challanTypes).map(([k, v]) => (
                 <PickerItem key={k} id={k}>
                   {v}
                 </PickerItem>
               ))}
-            </Picker>
+            </Picker>}
+            {config.transport && <>
             <TextField label="Vehicle no." name="vehicle_no" isReadOnly={readOnly} value={vehicle} onChange={setVehicle} styles={style({ width: 160 })} />
             <TextField label="Transporter" name="transporter" isReadOnly={readOnly} value={transporter} onChange={setTransporter} styles={style({ width: 240 })} />
             <TextField label="E-way bill no." name="eway_bill_no" inputMode="numeric" isReadOnly={readOnly} value={eway} onChange={setEway} styles={style({ width: 180 })} />
+            </>}
           </div>
+        )}
+        {config.reverseCharge && (
+          <Checkbox name="reverse_charge" isSelected={reverse} onChange={setReverse} isReadOnly={readOnly}>
+            Reverse charge applies (the customer pays the GST)
+          </Checkbox>
         )}
         {config.refLabels && (
           <div className={row}>
@@ -260,7 +278,7 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
             <DatePicker label={config.refLabels.date} name="party_ref_date" isReadOnly={readOnly} value={refDate ? parseDate(refDate) : null} onChange={(v) => setRefDate(v?.toString() ?? null)} styles={style({ width: 180 })} />
           </div>
         )}
-        <LineItems lines={lines} onChange={setLines} side={config.side} isReadOnly={readOnly} totals={{ type: config.type, companyState, partyState: party?.state_code ?? null, placeOfSupply: null }} />
+        <LineItems lines={lines} onChange={setLines} side={config.side} isReadOnly={readOnly} totals={{ type: config.type, companyState, partyState: party?.state_code ?? null, placeOfSupply: (config.shipTo && shipTo?.state_code) || null }} />
         <div className={narrow}>
           <TextArea label="Terms" name="terms" description={config.termsHelp} isReadOnly={readOnly} value={terms} onChange={setTerms} styles={style({ width: "full" })} />
         </div>
@@ -274,10 +292,16 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
             </Button>
           )}
           {moves.map((to) => (
-            <Button key={to} variant={moves[0] === to && to !== "cancelled" ? "accent" : "secondary"} /* cancelling is final: never the primary button */ isDisabled={busy} onPress={() => (FINAL.has(to) ? setConfirming(to) : void move(to))}>
+            <Button key={to} variant={moves[0] === to && to !== "cancelled" ? "accent" : "secondary"} /* cancelling is final: never the primary button */ isDisabled={busy} onPress={() => (FINAL.has(to) || config.confirm?.includes(to) ? setConfirming(to) : void move(to))}>
               {config.moveLabels[to] ?? config.statuses[to]?.label ?? to}
             </Button>
           ))}
+          {doc && api.cancel && role === "admin" && status !== "cancelled" && (
+            // One string child: S2 only puts a lone string in its label slot ("Cancel {label}" is two).
+            <Button variant="secondary" isDisabled={busy} onPress={() => setCancelling(true)}>
+              {`Cancel ${label}`}
+            </Button>
+          )}
           {converts.map((c) => (
             <LinkButton key={c.label} href={c.href(doc!)} variant="secondary">
               {c.label}
@@ -303,6 +327,18 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
             onPrimaryAction={() => void move(confirming)}>
             This can't be undone.
           </AlertDialog>
+        )}
+      </DialogContainer>
+      <DialogContainer onDismiss={() => setCancelling(false)}>
+        {doc && cancelling && api.cancel && (
+          <CancelDialog
+            title={`Cancel ${label} ${doc.number}?`}
+            onCancel={async (reason) => {
+              const result = await run(() => api.cancel!(String(doc.id), reason), `${capital(label)} ${doc.number} cancelled.`);
+              if (result) onSaved(result);
+              return !!result;
+            }}
+          />
         )}
       </DialogContainer>
       {doc && config.progress && status !== "draft" && (
@@ -331,5 +367,42 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
         </section>
       )}
     </div>
+  );
+}
+
+/** "Cancel invoice INV/…?" with the reason the law wants kept. State lives here, above <Dialog>
+ *  (S2's Dialog renders its children once per layout slot). */
+function CancelDialog({ title, onCancel }: { title: string; onCancel: (reason: string) => Promise<boolean> }) {
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog>
+      {({ close }) => (
+        <>
+          <Heading>{title}</Heading>
+          <Content>
+            <p className={note}>This can't be undone. The number stays used, and what it took from challans or orders goes back to them.</p>
+            <TextArea label="Reason" isRequired value={reason} onChange={setReason} autoFocus styles={style({ width: "full", marginTop: 16 })} />
+          </Content>
+          <ButtonGroup>
+            <Button variant="secondary" onPress={close}>
+              Keep it
+            </Button>
+            <Button
+              variant="negative"
+              isPending={busy}
+              isDisabled={!reason.trim()}
+              onPress={async () => {
+                setBusy(true);
+                const done = await onCancel(reason.trim());
+                setBusy(false);
+                if (done) close();
+              }}>
+              Cancel it
+            </Button>
+          </ButtonGroup>
+        </>
+      )}
+    </Dialog>
   );
 }

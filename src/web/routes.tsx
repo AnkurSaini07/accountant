@@ -23,6 +23,8 @@ import { PartyList } from "./pages/parties/PartyList.tsx";
 import { ChallanForm } from "./pages/sales/ChallanForm.tsx";
 import { ChallanList } from "./pages/sales/ChallanList.tsx";
 import { ChallanPrint } from "./pages/sales/ChallanPrint.tsx";
+import { InvoiceForm } from "./pages/sales/InvoiceForm.tsx";
+import { InvoiceList } from "./pages/sales/InvoiceList.tsx";
 import { OrderForm } from "./pages/sales/OrderForm.tsx";
 import { OrderList } from "./pages/sales/OrderList.tsx";
 import { QuotationForm } from "./pages/sales/QuotationForm.tsx";
@@ -82,6 +84,7 @@ const SALES: SubLink[] = [
   { path: "/sales/quotations", label: "Quotations" },
   { path: "/sales/orders", label: "Orders" },
   { path: "/sales/challans", label: "Challans" },
+  { path: "/sales/invoices", label: "Invoices" },
 ];
 const MASTERS: SubLink[] = [
   { path: "/masters/parties", label: "Parties" },
@@ -134,6 +137,9 @@ export function AppRoutes() {
       <Route path="/sales/challans" element={<SubNav label="Sales" links={SALES}><ChallanList /></SubNav>} />
       <Route path="/sales/challans/new" element={<SubNav label="Sales" links={SALES}><ChallanForm /></SubNav>} />
       <Route path="/sales/challans/:id" element={<SubNav label="Sales" links={SALES}><ChallanForm /></SubNav>} />
+      <Route path="/sales/invoices" element={<SubNav label="Sales" links={SALES}><InvoiceList /></SubNav>} />
+      <Route path="/sales/invoices/new" element={<SubNav label="Sales" links={SALES}><InvoiceForm /></SubNav>} />
+      <Route path="/sales/invoices/:id" element={<SubNav label="Sales" links={SALES}><InvoiceForm /></SubNav>} />
       <Route path="/masters" element={<Navigate replace to="/masters/parties" />} />
       <Route path="/masters/parties" element={<SubNav label="Masters" links={MASTERS}><PartyList /></SubNav>} />
       <Route path="/masters/parties/new" element={<SubNav label="Masters" links={MASTERS}><PartyForm /></SubNav>} />

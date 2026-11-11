@@ -39,7 +39,7 @@ export function PrintPage({ load, label, back, title, copies, ...print }: Props)
 
   const backLink = (
     <LinkButton href={back(id)} variant="secondary">
-      Back to {label}
+      {`Back to ${label}`}
     </LinkButton>
   );
   if (doc === "missing") return <p>This {label} couldn't be loaded. {backLink}</p>;

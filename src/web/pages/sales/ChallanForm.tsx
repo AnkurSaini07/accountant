@@ -32,8 +32,10 @@ export function ChallanForm() {
       refLabels={{ ref: "Customer PO no.", date: "PO date" }}
       shipTo
       challanTypes={CHALLAN_TYPES}
+      transport
       writers={WRITERS}
       printPath={(id) => `/print/challans/${id}`}
+      converts={[{ label: "Create invoice", when: ["finalized"], href: (d) => `/sales/invoices/new?from=${d.id}` }]}
     />
   );
 }
