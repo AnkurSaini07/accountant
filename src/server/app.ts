@@ -5,6 +5,7 @@ import { createOidc, type Oidc } from "./auth/oidc.ts";
 import { authRoutes } from "./auth/routes.ts";
 import { testLoginRoutes } from "./auth/test-login.ts";
 import { companyRoutes } from "./company/routes.ts";
+import { partyRoutes } from "./parties/routes.ts";
 import { seriesRoutes } from "./series/routes.ts";
 import { db as defaultDb } from "./db.ts";
 import { onError, onNotFound } from "./errors.ts";
@@ -28,6 +29,7 @@ export function createApp({
   app.route("/auth", authRoutes({ db, oidc }));
   app.route("/company", companyRoutes(db));
   app.route("/series", seriesRoutes(db));
+  app.route("/parties", partyRoutes(db));
   if (env.NODE_ENV === "test") app.route("/test", testLoginRoutes(db));
 
   app.notFound(onNotFound);
