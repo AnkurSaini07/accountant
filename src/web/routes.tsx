@@ -9,7 +9,8 @@ import UserGroup from "@react-spectrum/s2/icons/UserGroup";
 import Wallet from "@react-spectrum/s2/icons/Wallet";
 import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import type { ComponentType } from "react";
-import { Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router";
+import { CompanySettings } from "./pages/settings/Company.tsx";
 
 export type NavSection = { path: string; label: string; icon: ComponentType };
 
@@ -56,7 +57,9 @@ function NotFound() {
 export function AppRoutes() {
   return (
     <Routes>
-      {NAV.map(({ path, label }) => (
+      <Route path="/settings" element={<Navigate replace to="/settings/company" />} />
+      <Route path="/settings/company" element={<CompanySettings />} />
+      {NAV.filter(({ path }) => path !== "/settings").map(({ path, label }) => (
         <Route key={path} path={path === "/" ? "/" : `${path}/*`} element={<Placeholder label={label} />} />
       ))}
       <Route path="*" element={<NotFound />} />

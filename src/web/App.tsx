@@ -7,21 +7,29 @@ import { BrowserRouter, Route, Routes, useHref, useNavigate } from "react-router
 import { fyLabel, recentFys } from "../shared/fy.ts";
 import { AuthProvider, RequireAuth, useAuth, useUser } from "./auth.tsx";
 import { Layout } from "./components/Layout.tsx";
+import { CompanyProvider, displayName, useCompany } from "./pages/settings/Company.tsx";
 import { NoAccess, SignIn } from "./pages/SignIn.tsx";
 import { AppRoutes } from "./routes.tsx";
 
-// ponytail: placeholder until the company profile API (#22) exists.
-const COMPANY_NAME = "My Company";
 
 /** The app for a signed-in user: layout + section routes. */
 function SignedInApp() {
+  return (
+    <CompanyProvider>
+      <SignedInLayout />
+    </CompanyProvider>
+  );
+}
+
+function SignedInLayout() {
   const user = useUser();
+  const { company } = useCompany();
   const { signOut } = useAuth();
   const financialYears = recentFys(3).map(fyLabel);
   const [financialYear, setFinancialYear] = useState(financialYears[0]!);
   return (
     <Layout
-      companyName={COMPANY_NAME}
+      companyName={displayName(company)}
       financialYears={financialYears}
       financialYear={financialYear}
       onFinancialYearChange={setFinancialYear}
