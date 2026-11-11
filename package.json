@@ -11,10 +11,12 @@
     "services:up": "docker compose up -d --wait",
     "services:down": "docker compose down",
     "build": "bun scripts/build.ts",
-    "migrate": "bun scripts/migrate.ts"
+    "migrate": "bun scripts/migrate.ts",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^21.0.4",
+    "@playwright/test": "^1.65.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",

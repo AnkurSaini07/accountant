@@ -8,3 +8,5 @@ plugins = ["./scripts/s2-plugin.ts"]
 # bun test reads its own preload list, not the top-level one.
 [test]
 preload = ["reylo/register", "./src/web/test/setup.ts"]
+# Playwright specs (bun run e2e), not bun test.
+pathIgnorePatterns = ["e2e/**"]
