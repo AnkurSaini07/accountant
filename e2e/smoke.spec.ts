@@ -15,7 +15,7 @@ test("signed out, a deep link goes to sign in", async ({ page }) => {
 test("admin signs in and sees the layout", async ({ page }) => {
   await signIn(page, "admin");
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Dashboard (CI probe: must fail)" })).toBeVisible({ timeout: 2000 });
   await expect(page.getByText("E2E admin")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 
