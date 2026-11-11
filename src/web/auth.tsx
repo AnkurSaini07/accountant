@@ -1,0 +1,75 @@
+// Who's signed in, for the whole app. <AuthProvider> asks /api/auth/me once; <RequireAuth> sends
+// signed-out users to /sign-in?returnTo=<where they were>, and so does any later 401 (e.g. an
+// expired session), via api.ts's unauthorized handler.
+import { ProgressCircle } from "@react-spectrum/s2/ProgressCircle";
+import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Navigate, useLocation } from "react-router";
+import { api, setUnauthorizedHandler } from "./api.ts";
+
+export type Role = "admin" | "accountant" | "operator" | "viewer";
+export type User = { id: number; name: string; email: string | null; role: Role };
+
+type AuthState = { status: "loading" } | { status: "signedOut" } | { status: "signedIn"; user: User };
+type AuthContextValue = { state: AuthState; signOut: () => Promise<void> };
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<AuthState>({ status: "loading" });
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => setState({ status: "signedOut" }));
+    let live = true;
+    api.get<User>("/auth/me").then(
+      (user) => live && setState({ status: "signedIn", user }),
+      () => live && setState({ status: "signedOut" }), // 401, or the server is down (a toast says so)
+    );
+    return () => {
+      live = false;
+      setUnauthorizedHandler(undefined);
+    };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    const { endSessionUrl } = await api.post<{ endSessionUrl: string | null }>("/auth/logout");
+    // Leave the app entirely: Pocket ID ends its session too, then sends the browser back to "/".
+    window.location.assign(endSessionUrl ?? "/sign-in");
+  }, []);
+
+  const value = useMemo(() => ({ state, signOut }), [state, signOut]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const value = useContext(AuthContext);
+  if (!value) throw new Error("useAuth must be used inside <AuthProvider>");
+  return value;
+}
+
+/** The signed-in user. Only call below <RequireAuth>. */
+export function useUser(): User {
+  const { state } = useAuth();
+  if (state.status !== "signedIn") throw new Error("useUser must be used below <RequireAuth>");
+  return state.user;
+}
+
+const centered = style({ display: "flex", alignItems: "center", justifyContent: "center", height: "screen" });
+
+/** Renders children for signed-in users; sends everyone else to sign in, remembering where they were. */
+export function RequireAuth({ children }: { children: ReactNode }) {
+  const { state } = useAuth();
+  const location = useLocation();
+  if (state.status === "loading") {
+    return (
+      <div className={centered}>
+        <ProgressCircle aria-label="Loading" isIndeterminate />
+      </div>
+    );
+  }
+  if (state.status === "signedOut") {
+    const returnTo = location.pathname + location.search + location.hash;
+    return <Navigate replace to={returnTo === "/" ? "/sign-in" : `/sign-in?returnTo=${encodeURIComponent(returnTo)}`} />;
+  }
+  return children;
+}

@@ -24,6 +24,12 @@ export class ApiError extends Error {
 
 const silent = (e: ApiError) => e.status === 401 || e.code === "VALIDATION";
 
+let onUnauthorized: (() => void) | undefined;
+/** Called on every 401, e.g. when a session expires mid-work. auth.tsx uses it to send the user to sign in. */
+export function setUnauthorizedHandler(fn: (() => void) | undefined) {
+  onUnauthorized = fn;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
@@ -58,6 +64,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 function fail(e: ApiError): ApiError {
+  if (e.status === 401) onUnauthorized?.();
   if (!silent(e)) ToastQueue.negative(e.message, { timeout: 8000 });
   return e;
 }

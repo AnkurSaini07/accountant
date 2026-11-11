@@ -1,3 +1,4 @@
+import { ActionButton } from "@react-spectrum/s2/ActionButton";
 import { Picker, PickerItem } from "@react-spectrum/s2/Picker";
 import { SideNav, SideNavItem, SideNavItemContent, SideNavItemLink, Text } from "@react-spectrum/s2/SideNav";
 import { SideNavPanel } from "@react-spectrum/s2/SideNavPanel";
@@ -24,6 +25,8 @@ const header = style({
   borderColor: "gray-200",
 });
 const company = style({ font: "title", margin: 0 });
+const actions = style({ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 });
+const userName = style({ font: "ui", color: "gray-700", margin: 0 });
 const content = style({ padding: 24, overflow: "auto", flexGrow: 1 });
 
 export type LayoutProps = {
@@ -31,10 +34,12 @@ export type LayoutProps = {
   financialYears: string[];
   financialYear: string;
   onFinancialYearChange: (fy: string) => void;
+  userName: string;
+  onSignOut: () => void;
   children: ReactNode;
 };
 
-export function Layout({ companyName, financialYears, financialYear, onFinancialYearChange, children }: LayoutProps) {
+export function Layout({ companyName, financialYears, financialYear, onFinancialYearChange, userName: name, onSignOut, children }: LayoutProps) {
   const { pathname } = useLocation();
   // Collapse to the icon rail on phones; users can still expand it with the panel's toggle.
   const narrow = typeof window !== "undefined" && window.matchMedia?.("(max-width: 700px)").matches;
@@ -58,18 +63,24 @@ export function Layout({ companyName, financialYears, financialYear, onFinancial
       <div className={column}>
         <header className={header}>
           <p className={company}>{companyName}</p>
-          <Picker
-            label="Financial year"
-            labelPosition="side"
-            size="S"
-            selectedKey={financialYear}
-            onSelectionChange={(key) => key != null && onFinancialYearChange(String(key))}>
-            {financialYears.map((fy) => (
-              <PickerItem key={fy} id={fy}>
-                {fy}
-              </PickerItem>
-            ))}
-          </Picker>
+          <div className={actions}>
+            <Picker
+              label="Financial year"
+              labelPosition="side"
+              size="S"
+              selectedKey={financialYear}
+              onSelectionChange={(key) => key != null && onFinancialYearChange(String(key))}>
+              {financialYears.map((fy) => (
+                <PickerItem key={fy} id={fy}>
+                  {fy}
+                </PickerItem>
+              ))}
+            </Picker>
+            <p className={userName}>{name}</p>
+            <ActionButton size="S" onPress={onSignOut}>
+              Sign out
+            </ActionButton>
+          </div>
         </header>
         <main className={content}>{children}</main>
       </div>

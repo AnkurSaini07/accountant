@@ -2,19 +2,25 @@
 // which React Spectrum generates), interact with userEvent, assert on what the user sees.
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, test } from "bun:test";
-import { MemoryRouter } from "react-router";
+import { describe, expect, spyOn, test } from "bun:test";
+import { MemoryRouter, useLocation } from "react-router";
 import { api } from "./api.ts";
+import { calls, fakeApi, unauthorized } from "./test/fake-api.ts";
 import { Shell } from "./App.tsx";
 import { NAV, sectionOf } from "./routes.tsx";
 
-function renderAt(path: string) {
+export const ME = { id: 1, name: "Asha Verma", email: "asha@example.com", role: "admin" };
+
+/** Renders the app at `path` as a signed-in user and waits for the layout. */
+async function renderAt(path: string) {
+  fakeApi({ "GET /auth/me": ME });
   render(
     <MemoryRouter initialEntries={[path]}>
       <Shell />
     </MemoryRouter>,
   );
-  return { user: userEvent.setup(), nav: within(screen.getByRole("treegrid", { name: "Sections" })) };
+  const nav = within(await screen.findByRole("treegrid", { name: "Sections" }));
+  return { user: userEvent.setup(), nav };
 }
 
 const heading = () => screen.getByRole("heading", { level: 1 });
@@ -27,15 +33,15 @@ function recentYears(count = 2): [string, string, ...string[]] {
 }
 
 describe("app layout", () => {
-  test("lists every section and marks the current one", () => {
-    const { nav } = renderAt("/");
+  test("lists every section and marks the current one", async () => {
+    const { nav } = await renderAt("/");
     for (const { label } of NAV) expect(nav.getByRole("link", { name: label })).toBeInTheDocument();
     expect(nav.getByRole("link", { name: "Dashboard" }).closest("[aria-current]")).not.toBeNull();
     expect(heading()).toHaveTextContent("Dashboard");
   });
 
   test("navigates between sections without leaving the app", async () => {
-    const { user, nav } = renderAt("/");
+    const { user, nav } = await renderAt("/");
     await user.click(nav.getByRole("link", { name: "Purchase" }));
     expect(heading()).toHaveTextContent("Purchase");
     expect(nav.getByRole("link", { name: "Purchase" }).closest("[aria-current]")).not.toBeNull();
@@ -43,26 +49,26 @@ describe("app layout", () => {
   });
 
   test("is keyboard navigable", async () => {
-    const { user } = renderAt("/");
+    const { user } = await renderAt("/");
     await user.tab();
     expect(document.activeElement).toHaveTextContent("Dashboard");
     await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
     expect(heading()).toHaveTextContent("Purchase");
   });
 
-  test("deep links highlight their section", () => {
-    const { nav } = renderAt("/sales/invoices/42");
+  test("deep links highlight their section", async () => {
+    const { nav } = await renderAt("/sales/invoices/42");
     expect(heading()).toHaveTextContent("Sales");
     expect(nav.getByRole("link", { name: "Sales" }).closest("[aria-current]")).not.toBeNull();
   });
 
-  test("unknown paths show a not-found page", () => {
-    renderAt("/no-such-page");
+  test("unknown paths show a not-found page", async () => {
+    await renderAt("/no-such-page");
     expect(heading()).toHaveTextContent("Page not found");
   });
 
   test("header shows the company and lets the user switch financial year", async () => {
-    const { user } = renderAt("/");
+    const { user } = await renderAt("/");
     expect(screen.getByText("My Company")).toBeInTheDocument();
     const picker = () => screen.getByRole("button", { name: /Financial year/ });
 
@@ -81,18 +87,100 @@ describe("app layout", () => {
 
 describe("api failures", () => {
   test("show a toast the user can read and dismiss", async () => {
-    const { user } = renderAt("/");
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = (async () => Response.json({ error: { code: "CONFLICT", message: "Invoice number INV-1 already exists" } }, { status: 409 })) as unknown as typeof fetch;
-    try {
-      await act(() => api.post("/invoices", {}).catch(() => {}));
-    } finally {
-      globalThis.fetch = realFetch;
-    }
+    const { user } = await renderAt("/");
+    fakeApi({ "POST /invoices": Response.json({ error: { code: "CONFLICT", message: "Invoice number INV-1 already exists" } }, { status: 409 }) });
+    await act(() => api.post("/invoices", {}).catch(() => {}));
     const toast = await screen.findByRole("alertdialog");
     expect(toast).toHaveTextContent("Invoice number INV-1 already exists");
     await user.click(within(toast).getByRole("button", { name: /close|dismiss/i }));
     expect(screen.queryByText("Invoice number INV-1 already exists")).not.toBeInTheDocument();
+  });
+});
+
+/** Shows the current URL so tests can assert on redirects. */
+function Url() {
+  const l = useLocation();
+  return <output aria-label="url">{l.pathname + l.search}</output>;
+}
+function renderSignedOut(path: string, routes: Record<string, unknown> = {}) {
+  fakeApi({ "GET /auth/me": unauthorized(), ...routes });
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Shell />
+      <Url />
+    </MemoryRouter>,
+  );
+  return userEvent.setup();
+}
+const url = () => screen.getByRole("status", { name: "url" }).textContent;
+
+describe("sign-in", () => {
+  test("signed out: any page redirects to sign-in, remembering where you were", async () => {
+    renderSignedOut("/sales/invoices?fy=2026-27");
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(url()).toBe("/sign-in?returnTo=%2Fsales%2Finvoices%3Ffy%3D2026-27");
+    expect(screen.queryByRole("treegrid")).not.toBeInTheDocument();
+  });
+
+  test("the button starts the Pocket ID login with returnTo", async () => {
+    const assign = spyOn(window.location, "assign").mockImplementation(() => {});
+    try {
+      const user = renderSignedOut("/purchase");
+      await user.click(await screen.findByRole("button", { name: "Sign in with Pocket ID" }));
+      expect(assign).toHaveBeenCalledWith("/api/auth/login?returnTo=%2Fpurchase");
+    } finally {
+      assign.mockRestore();
+    }
+  });
+
+  test("returnTo can't point off-site", async () => {
+    const assign = spyOn(window.location, "assign").mockImplementation(() => {});
+    try {
+      const user = renderSignedOut("/sign-in?returnTo=%2F%2Fevil.com");
+      await user.click(await screen.findByRole("button", { name: "Sign in with Pocket ID" }));
+      expect(assign).toHaveBeenCalledWith("/api/auth/login?returnTo=%2F");
+    } finally {
+      assign.mockRestore();
+    }
+  });
+
+  test("already signed in: /sign-in goes on to returnTo", async () => {
+    fakeApi({ "GET /auth/me": ME });
+    render(
+      <MemoryRouter initialEntries={["/sign-in?returnTo=%2Freports"]}>
+        <Shell />
+        <Url />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole("heading", { level: 1, name: "Reports" })).toBeInTheDocument();
+    expect(url()).toBe("/reports");
+  });
+
+  test("no-access page is reachable signed out and links back to sign in", async () => {
+    renderSignedOut("/no-access");
+    expect(await screen.findByRole("heading", { name: "No access yet" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to sign in" })).toHaveAttribute("href", "/sign-in");
+  });
+
+  test("a 401 mid-session (expired session) sends you to sign in", async () => {
+    await renderAt("/sales");
+    fakeApi({ "GET /parties": unauthorized() });
+    await act(() => api.get("/parties").catch(() => {}));
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  test("header shows who's signed in; Sign out ends both sessions", async () => {
+    const assign = spyOn(window.location, "assign").mockImplementation(() => {});
+    try {
+      const { user } = await renderAt("/");
+      expect(screen.getByText("Asha Verma")).toBeInTheDocument();
+      fakeApi({ "POST /auth/logout": { endSessionUrl: "https://id.example/logout?id_token_hint=x" } });
+      await user.click(screen.getByRole("button", { name: "Sign out" }));
+      expect(calls).toEqual(["POST /auth/logout"]);
+      expect(assign).toHaveBeenCalledWith("https://id.example/logout?id_token_hint=x");
+    } finally {
+      assign.mockRestore();
+    }
   });
 });
 
