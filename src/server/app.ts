@@ -4,6 +4,7 @@ import { type AuthEnv, requireSession } from "./auth/middleware.ts";
 import { createOidc, type Oidc } from "./auth/oidc.ts";
 import { authRoutes } from "./auth/routes.ts";
 import { testLoginRoutes } from "./auth/test-login.ts";
+import { companyRoutes } from "./company/routes.ts";
 import { db as defaultDb } from "./db.ts";
 import { onError, onNotFound } from "./errors.ts";
 
@@ -24,6 +25,7 @@ export function createApp({
 
   app.get("/health", (c) => c.json({ ok: true }));
   app.route("/auth", authRoutes({ db, oidc }));
+  app.route("/company", companyRoutes(db));
   if (env.NODE_ENV === "test") app.route("/test", testLoginRoutes(db));
 
   app.notFound(onNotFound);
