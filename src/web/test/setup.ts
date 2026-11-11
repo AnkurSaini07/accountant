@@ -40,3 +40,7 @@ const { cleanup } = await import("@testing-library/react");
 expect.extend(matchers);
 // Testing Library only auto-cleans up when test hooks are globals, which they aren't in bun:test.
 afterEach(cleanup);
+
+// Component tests fake the API with fakeApi(); put Bun's fetch back after each one.
+const { restoreFetch } = await import("./fake-api.ts");
+afterEach(restoreFetch);
