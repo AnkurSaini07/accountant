@@ -25,27 +25,38 @@ export const documentLineInput = z.object({
   gst_rate: z.number().min(0).max(100).refine((v) => Number.isInteger(v * 100), "At most 2 decimals."),
 });
 
-export const documentInput = z
-  .object({
-    type: z.enum(DOCUMENT_TYPES),
-    date: isoDate,
-    party_id: z.number().int().positive("Choose a party."),
-    shipping_address: partyAddressInput.omit({ kind: true }).nullish().transform((v) => v ?? null), // null = ship to the billing address
-    place_of_supply: partyAddressInput.shape.state_code.nullish().transform((v) => v ?? null), // null = worked out from ship-to / party
-    reverse_charge: z.boolean().default(false),
-    party_ref: text(50), // customer PO no., supplier invoice no.
-    party_ref_date: isoDate.nullish().transform((v) => v ?? null),
-    due_date: isoDate.nullish().transform((v) => v ?? null),
-    challan_type: z.enum(CHALLAN_TYPES).nullish().transform((v) => v ?? null),
-    vehicle_no: text(20),
-    transporter: text(100),
-    eway_bill_no: z.string().nullish().transform((v) => v?.replace(/\s/g, "") || null).refine((v) => v === null || /^[0-9]{12}$/.test(v), "E-way bill number is 12 digits."),
-    notes: z.string().trim().max(2000).default(""),
-    terms: z.string().trim().max(4000).default(""),
-    lines: z.array(documentLineInput).min(1, "Add at least one line.").max(500),
-  })
-  .superRefine((d, ctx) => {
-    if (d.type === "challan" && !d.challan_type) ctx.addIssue({ code: "custom", path: ["challan_type"], message: "Choose the challan type." });
-    if (d.type !== "challan" && d.challan_type) ctx.addIssue({ code: "custom", path: ["challan_type"], message: "Only challans have a challan type." });
-  });
+/** Every field any document can carry. `documentInput` adds the cross-field rules; each type's API
+ *  narrows it (e.g. quotationInput). */
+export const documentFields = z.object({
+  type: z.enum(DOCUMENT_TYPES),
+  date: isoDate,
+  party_id: z.number().int().positive("Choose a party."),
+  shipping_address: partyAddressInput.omit({ kind: true }).nullish().transform((v) => v ?? null), // null = ship to the billing address
+  place_of_supply: partyAddressInput.shape.state_code.nullish().transform((v) => v ?? null), // null = worked out from ship-to / party
+  reverse_charge: z.boolean().default(false),
+  party_ref: text(50), // customer PO no., supplier invoice no.
+  party_ref_date: isoDate.nullish().transform((v) => v ?? null),
+  due_date: isoDate.nullish().transform((v) => v ?? null),
+  challan_type: z.enum(CHALLAN_TYPES).nullish().transform((v) => v ?? null),
+  vehicle_no: text(20),
+  transporter: text(100),
+  eway_bill_no: z.string().nullish().transform((v) => v?.replace(/\s/g, "") || null).refine((v) => v === null || /^[0-9]{12}$/.test(v), "E-way bill number is 12 digits."),
+  notes: z.string().trim().max(2000).default(""),
+  terms: z.string().trim().max(4000).default(""),
+  lines: z.array(documentLineInput).min(1, "Add at least one line.").max(500),
+});
+
+export const documentInput = documentFields.superRefine((d, ctx) => {
+  if (d.type === "challan" && !d.challan_type) ctx.addIssue({ code: "custom", path: ["challan_type"], message: "Choose the challan type." });
+  if (d.type !== "challan" && d.challan_type) ctx.addIssue({ code: "custom", path: ["challan_type"], message: "Only challans have a challan type." });
+});
 export type DocumentInput = z.output<typeof documentInput>;
+
+/** A quotation (FR-4.1): no type to send (it's a quotation) and no challan fields. */
+export const quotationInput = documentFields
+  .omit({ type: true, challan_type: true, vehicle_no: true, transporter: true, eway_bill_no: true })
+  .transform((d): DocumentInput => ({ ...d, type: "quotation", challan_type: null, vehicle_no: null, transporter: null, eway_bill_no: null }));
+
+/** Quotation status moves (FR-4.1): Draft → Sent → Accepted / Rejected / Expired. */
+export const QUOTATION_MOVES = { draft: ["sent"], sent: ["accepted", "rejected", "expired"] } as const satisfies Record<string, readonly string[]>;
+export const QUOTATION_STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;

@@ -120,7 +120,7 @@ describe("list", () => {
     const q = (await doc({ type: "quotation", party_id: party, date: "2026-05-01" })).id;
     const q2 = (await doc({ type: "quotation", party_id: party, date: "2026-06-01", number: "QT/26-27/0007", status: "sent" })).id;
     await doc({ type: "quotation", party_id: party, date: "2027-05-01", fy: 2027 });
-    const run = (extra: Row) => listQuery.run(db, { company_id: co, type: "quotation", fy: 2026, q: null, status: null, limit: 50, offset: 0, ...extra });
+    const run = (extra: Row) => listQuery.run(db, { company_id: co, type: "quotation", fy: 2026, q: null, status: null, party_id: null, date_from: null, date_to: null, limit: 50, offset: 0, ...extra });
     expect((await run({})).map((r) => r.id)).toEqual([q2, q]);
     expect((await run({ q: "zeta" })).map((r) => r.id)).toEqual([q2, q]);
     expect((await run({ q: "0007" })).map((r) => r.id)).toEqual([q2]);
