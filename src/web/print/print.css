@@ -1,0 +1,80 @@
+/* A4 document print (DocumentPrint). Black on white on screen and paper, whatever the app theme. */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+.dp-page {
+  background: #e8e8e8;
+  min-height: 100vh;
+  padding: 16px;
+  box-sizing: border-box;
+  color-scheme: light;
+  overflow-x: auto; /* a phone scrolls the A4 sheet, not squashes it */
+}
+.dp-toolbar {
+  max-width: 210mm;
+  margin: 0 auto 12px;
+  display: flex;
+  gap: 8px;
+}
+.dp-sheet {
+  background: #fff;
+  color: #111;
+  width: 210mm;
+  margin: 0 auto;
+  padding: 12mm;
+  box-sizing: border-box;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.2);
+  font: 10pt/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.dp-sheet h1, .dp-sheet h2, .dp-sheet h3, .dp-sheet p, .dp-sheet dl, .dp-sheet dd { margin: 0; }
+.dp-sheet h1 { font-size: 16pt; }
+.dp-sheet h2 { font-size: 14pt; text-transform: uppercase; letter-spacing: 0.04em; }
+.dp-sheet h3 { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #555; margin-bottom: 2px; }
+
+.dp-letterhead { display: flex; gap: 12px; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 8px; }
+.dp-logo { max-height: 22mm; max-width: 40mm; object-fit: contain; }
+.dp-company { flex: 1; }
+.dp-title { text-align: right; }
+.dp-draft { color: #b00; font-weight: 600; }
+
+.dp-parties { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #999; }
+.dp-strong { font-weight: 600; }
+.dp-details div { display: flex; justify-content: space-between; gap: 8px; }
+.dp-details dt { color: #555; white-space: nowrap; }
+.dp-details dd { text-align: right; font-weight: 600; }
+
+.dp-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.dp-table th, .dp-table td { border: 1px solid #999; padding: 3px 5px; text-align: left; vertical-align: top; }
+.dp-table thead th { background: #f0f0f0; font-size: 8.5pt; }
+.dp-table tfoot th { background: #f0f0f0; }
+.dp-num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dp-muted { color: #555; font-size: 9pt; }
+.dp-hsn { font-size: 9pt; }
+
+.dp-sums { display: flex; gap: 12px; justify-content: space-between; margin-top: 8px; }
+.dp-words { flex: 1; }
+.dp-totals { display: grid; grid-template-columns: auto auto; column-gap: 24px; row-gap: 2px; font-variant-numeric: tabular-nums; }
+.dp-totals dd { text-align: right; }
+.dp-grand { font-weight: 700; font-size: 11pt; border-top: 1px solid #111; padding-top: 2px; }
+
+.dp-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 12px; }
+.dp-footer section + section { margin-top: 8px; }
+.dp-pre { white-space: pre-wrap; }
+.dp-sign { text-align: right; min-width: 55mm; display: flex; flex-direction: column; align-items: flex-end; }
+.dp-sign img { max-height: 18mm; max-width: 50mm; margin: 4px 0; }
+.dp-sign-space { height: 18mm; }
+
+@media print {
+  .dp-page { background: none; padding: 0; min-height: 0; }
+  .dp-toolbar { display: none; }
+  .dp-sheet { box-shadow: none; padding: 0; width: auto; }
+  .dp-page { overflow: visible; }
+  /* The app's toasts and anything else outside the document stay off the paper. */
+  body > :not(#root), [data-print-hide] { display: none !important; }
+  .dp-lines thead { display: table-header-group; } /* header row on every page */
+  .dp-table tr, .dp-sums, .dp-footer, .dp-hsn { break-inside: avoid; }
+  .dp-letterhead, .dp-parties { break-after: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
