@@ -23,19 +23,20 @@ const PNG = "data:image/png;base64,iVBORw0KGgo=";
 const profile = {
   legal_name: "Saini Engineering Works",
   trade_name: "SEW",
-  address: "Plot 12, Sector 24",
-  city: "Faridabad",
-  pincode: "121005",
   gstin: HR.toLowerCase().replace(/(.{5})/, "$1 "), // normalised by the API
   phone: "+91 98100 00000",
   email: "accounts@sew.example",
-  bank_name: "HDFC Bank",
-  bank_account: "50100012345678",
-  bank_ifsc: "hdfc0001234",
-  bank_branch: "Sector 16, Faridabad",
   logo: PNG,
   signature: null,
   terms: "Goods once sold will not be taken back.",
+  addresses: [
+    { label: "Registered office", address: "Plot 12, Sector 24", city: "Faridabad", pincode: "121 005", is_primary: true },
+    { label: "Godown", address: "Village Mujesar", city: "Faridabad", pincode: "121003" },
+  ],
+  bank_accounts: [
+    { bank_name: "HDFC Bank", account_number: "5010 0012 3456 78", ifsc: "hdfc0001234", branch: "Sector 16", is_default: true },
+    { bank_name: "State Bank of India", account_name: "SEW Payroll", account_number: "30000000001", ifsc: "SBIN0001234" },
+  ],
 };
 
 const get = (role: Role) => app.request("/api/company", { headers: { cookie: cookies[role] } });
@@ -48,7 +49,13 @@ describe("GET /api/company", () => {
     for (const role of ROLES) {
       const res = await get(role);
       expect(res.status).toBe(200);
-      expect(await res.json()).toMatchObject({ legal_name: "My Company", state_code: "06", gstin: null });
+      expect(await res.json()).toMatchObject({
+        legal_name: "My Company",
+        state_code: "06",
+        gstin: null,
+        addresses: [{ label: "Registered office", city: "Faridabad", is_primary: true }],
+        bank_accounts: [],
+      });
     }
   });
 
@@ -70,8 +77,44 @@ describe("PUT /api/company", () => {
     const res = await put("admin", { ...profile, state_code: "27", pan: "ZZZZZ9999Z" }); // both ignored
     expect(res.status).toBe(200);
     const saved = await res.json();
-    expect(saved).toMatchObject({ legal_name: "Saini Engineering Works", gstin: HR, state_code: "06", pan: "AAPFU0939F", bank_ifsc: "HDFC0001234", logo: PNG });
+    expect(saved).toMatchObject({ legal_name: "Saini Engineering Works", gstin: HR, state_code: "06", pan: "AAPFU0939F", logo: PNG });
     expect(await (await get("operator")).json()).toEqual(saved);
+  });
+
+  test("addresses and bank accounts: several of each, in order, normalised; saving replaces the lists", async () => {
+    const saved = await (await put("admin", profile)).json();
+    expect(saved.addresses).toEqual([
+      { id: expect.any(Number), label: "Registered office", address: "Plot 12, Sector 24", city: "Faridabad", pincode: "121005", is_primary: true },
+      { id: expect.any(Number), label: "Godown", address: "Village Mujesar", city: "Faridabad", pincode: "121003", is_primary: false },
+    ]);
+    expect(saved.bank_accounts).toEqual([
+      { id: expect.any(Number), bank_name: "HDFC Bank", account_name: null, account_number: "50100012345678", ifsc: "HDFC0001234", branch: "Sector 16", is_default: true },
+      { id: expect.any(Number), bank_name: "State Bank of India", account_name: "SEW Payroll", account_number: "30000000001", ifsc: "SBIN0001234", branch: null, is_default: false },
+    ]);
+
+    const fewer = await (await put("admin", { ...profile, addresses: [profile.addresses[0]], bank_accounts: [] })).json();
+    expect(fewer.addresses.map((a: { label: string }) => a.label)).toEqual(["Registered office"]);
+    expect(fewer.bank_accounts).toEqual([]);
+  });
+
+  test("exactly one primary address and one default bank account; no duplicate accounts", async () => {
+    const [office, godown] = profile.addresses as [(typeof profile.addresses)[0], (typeof profile.addresses)[1]];
+    const [hdfc, sbi] = profile.bank_accounts as [(typeof profile.bank_accounts)[0], (typeof profile.bank_accounts)[1]];
+    const cases: [unknown, string][] = [
+      [{ addresses: [] }, "addresses"],
+      [{ addresses: [{ ...office, is_primary: false }, godown] }, "addresses"],
+      [{ addresses: [office, { ...godown, is_primary: true }] }, "addresses"],
+      [{ bank_accounts: [{ ...hdfc, is_default: false }, sbi] }, "bank_accounts"],
+      [{ bank_accounts: [hdfc, { ...sbi, is_default: true }] }, "bank_accounts"],
+      [{ bank_accounts: [hdfc, { ...sbi, account_number: hdfc.account_number }] }, "bank_accounts"],
+      [{ bank_accounts: [{ ...hdfc, ifsc: "HDFC1234567" }] }, "bank_accounts.0.ifsc"],
+      [{ addresses: [{ ...office, label: " ", pincode: "012345" }] }, "addresses.0.label"],
+    ];
+    for (const [change, field] of cases) {
+      const res = await put("admin", { ...profile, ...(change as object) });
+      expect(res.status).toBe(400);
+      expect(Object.keys(await fields(res))).toContain(field);
+    }
   });
 
   test("invalid GSTIN is rejected with the validator's reason", async () => {
@@ -96,24 +139,35 @@ describe("PUT /api/company", () => {
     const res = await put("admin", {
       ...profile,
       legal_name: "  ",
-      pincode: "012345",
       email: "nope",
-      bank_ifsc: "HDFC1234567",
       signature: "data:image/svg+xml;base64,PHN2Zz4=",
       logo: `data:image/png;base64,${"A".repeat(400_000)}`,
     });
     expect(res.status).toBe(400);
-    expect(Object.keys(await fields(res)).sort()).toEqual(["bank_ifsc", "email", "legal_name", "logo", "pincode", "signature"]);
+    expect(Object.keys(await fields(res)).sort()).toEqual(["email", "legal_name", "logo", "signature"]);
   });
 
   test("blank optional fields are stored as null", async () => {
-    const res = await put("admin", { legal_name: "Minimal", state_code: "06", trade_name: "", email: "", bank_ifsc: " " });
+    const res = await put("admin", { legal_name: "Minimal", state_code: "06", trade_name: "", email: "", addresses: [{ label: "Office", is_primary: true }] });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ legal_name: "Minimal", trade_name: null, email: null, bank_ifsc: null, logo: null, address: "", terms: "" });
+    expect(await res.json()).toMatchObject({
+      legal_name: "Minimal", trade_name: null, email: null, logo: null, terms: "",
+      addresses: [{ label: "Office", address: "", city: "", pincode: null }],
+      bank_accounts: [],
+    });
   });
 });
 
 describe("database constraints", () => {
+  test("at most one primary address and one default account per company", async () => {
+    const [{ id }] = await db`select id from companies limit 1`;
+    await expect(db`insert into company_addresses (company_id, label, is_primary) values (${id}, 'x', true), (${id}, 'y', true)`).rejects.toThrow(/one_primary/);
+    await expect(
+      db`insert into company_bank_accounts (company_id, bank_name, account_number, ifsc, is_default)
+         values (${id}, 'A', '111111', 'HDFC0000001', true), (${id}, 'B', '222222', 'HDFC0000001', true)`,
+    ).rejects.toThrow(/one_default/);
+  });
+
   test("GSTIN, state and PAN can't disagree even outside the API", async () => {
     await expect(db`update companies set gstin = ${HR}, state_code = '27', pan = 'AAPFU0939F'`).rejects.toThrow(/check/);
   });
