@@ -21,6 +21,6 @@ test("admin signs in and sees the layout", async ({ page }) => {
 
   const nav = page.getByRole("treegrid", { name: "Sections" });
   await nav.getByRole("link", { name: "Sales" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Sales" })).toBeVisible();
-  await expect(page).toHaveURL("/sales");
+  await expect(page.getByRole("heading", { level: 1, name: "Quotations" })).toBeVisible(); // Sales opens its first screen
+  await expect(page).toHaveURL("/sales/quotations");
 });
