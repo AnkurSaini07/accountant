@@ -1,5 +1,5 @@
 import { ToastQueue } from "@react-spectrum/s2/Toast";
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { ApiError, api } from "./api.ts";
 
 const realFetch = globalThis.fetch;
@@ -8,6 +8,8 @@ afterEach(() => {
   globalThis.fetch = realFetch;
   toast.mockClear();
 });
+// Test files share one process: leave the real ToastQueue for later files (App.test.tsx renders toasts).
+afterAll(() => toast.mockRestore());
 
 /** Replaces fetch; returns the mock so tests can inspect the request. */
 function respond(status: number, body?: unknown, raw?: string) {
