@@ -23,6 +23,8 @@ import { PartyList } from "./pages/parties/PartyList.tsx";
 import { ChallanForm } from "./pages/sales/ChallanForm.tsx";
 import { ChallanList } from "./pages/sales/ChallanList.tsx";
 import { ChallanPrint } from "./pages/sales/ChallanPrint.tsx";
+import { GrnForm } from "./pages/purchase/GrnForm.tsx";
+import { GrnList } from "./pages/purchase/GrnList.tsx";
 import { PoForm } from "./pages/purchase/PoForm.tsx";
 import { PoList } from "./pages/purchase/PoList.tsx";
 import { PoPrint } from "./pages/purchase/PoPrint.tsx";
@@ -94,7 +96,10 @@ const SALES: SubLink[] = [
   { path: "/sales/invoices", label: "Invoices" },
   { path: "/sales/credit-notes", label: "Credit notes" },
 ];
-const PURCHASE: SubLink[] = [{ path: "/purchase/orders", label: "Orders" }];
+const PURCHASE: SubLink[] = [
+  { path: "/purchase/orders", label: "Orders" },
+  { path: "/purchase/grns", label: "GRNs" },
+];
 const MASTERS: SubLink[] = [
   { path: "/masters/parties", label: "Parties" },
   { path: "/masters/items", label: "Items" },
@@ -159,6 +164,9 @@ export function AppRoutes() {
       <Route path="/purchase/orders" element={<SubNav label="Purchase" links={PURCHASE}><PoList /></SubNav>} />
       <Route path="/purchase/orders/new" element={<SubNav label="Purchase" links={PURCHASE}><PoForm /></SubNav>} />
       <Route path="/purchase/orders/:id" element={<SubNav label="Purchase" links={PURCHASE}><PoForm /></SubNav>} />
+      <Route path="/purchase/grns" element={<SubNav label="Purchase" links={PURCHASE}><GrnList /></SubNav>} />
+      <Route path="/purchase/grns/new" element={<SubNav label="Purchase" links={PURCHASE}><GrnForm /></SubNav>} />
+      <Route path="/purchase/grns/:id" element={<SubNav label="Purchase" links={PURCHASE}><GrnForm /></SubNav>} />
       <Route path="/masters" element={<Navigate replace to="/masters/parties" />} />
       <Route path="/masters/parties" element={<SubNav label="Masters" links={MASTERS}><PartyList /></SubNav>} />
       <Route path="/masters/parties/new" element={<SubNav label="Masters" links={MASTERS}><PartyForm /></SubNav>} />

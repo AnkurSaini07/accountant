@@ -81,6 +81,7 @@ export type DocConfig = {
   transport?: boolean; // vehicle no., transporter, e-way bill no. (challans, invoices)
   reverseCharge?: boolean; // the reverse-charge flag (invoices, bills)
   confirm?: string[]; // more moves to ask about first, e.g. finalizing an invoice locks it
+  rejected?: boolean; // a GRN: lines record accepted and rejected qty
 };
 
 const page = style({ display: "flex", flexDirection: "column", gap: 24 });
@@ -101,7 +102,7 @@ const FINAL = new Set(["cancelled", "rejected", "expired"]);
 const capital = (s: string) => s[0]!.toUpperCase() + s.slice(1);
 const rupees = (paise: number) => (paise ? formatRupees(paise).replaceAll(",", "") : "");
 
-type LineSource = Pick<Doc["lines"][number], "item_id" | "item_code" | "item_name" | "hsn" | "unit" | "unit_decimals" | "gst_rate" | "rate" | "description" | "qty" | "discount_bp" | "from_line_id">;
+type LineSource = Pick<Doc["lines"][number], "item_id" | "item_code" | "item_name" | "hsn" | "unit" | "unit_decimals" | "gst_rate" | "rate" | "description" | "qty" | "discount_bp" | "from_line_id"> & { rejected_qty?: number };
 /** A saved or drafted line back into the editor's shape; the line keeps its own (snapshotted) HSN, unit and rate. */
 function toDraft(l: LineSource): LineDraft {
   return {
@@ -115,6 +116,7 @@ function toDraft(l: LineSource): LineDraft {
     rate: rupees(l.rate),
     discount: l.discount_bp ? String(l.discount_bp / 100) : "",
     from_line_id: l.from_line_id,
+    rejected: l.rejected_qty ? formatQty(l.rejected_qty, l.unit_decimals) : "",
   };
 }
 
@@ -289,7 +291,7 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
             <DatePicker label={config.refLabels.date} name="party_ref_date" isReadOnly={readOnly} value={refDate ? parseDate(refDate) : null} onChange={(v) => setRefDate(v?.toString() ?? null)} styles={style({ width: 180 })} />
           </div>
         )}
-        <LineItems lines={lines} onChange={setLines} side={config.side} isReadOnly={readOnly} totals={{ type: config.type, companyState, partyState: party?.state_code ?? null, placeOfSupply: (config.shipTo && shipTo?.state_code) || null }} />
+        <LineItems lines={lines} onChange={setLines} side={config.side} isReadOnly={readOnly} rejected={config.rejected} totals={{ type: config.type, companyState, partyState: party?.state_code ?? null, placeOfSupply: (config.shipTo && shipTo?.state_code) || null }} />
         <div className={narrow}>
           <TextArea label="Terms" name="terms" description={config.termsHelp} isReadOnly={readOnly} value={terms} onChange={setTerms} styles={style({ width: "full" })} />
         </div>
