@@ -23,6 +23,9 @@ import { PartyList } from "./pages/parties/PartyList.tsx";
 import { ChallanForm } from "./pages/sales/ChallanForm.tsx";
 import { ChallanList } from "./pages/sales/ChallanList.tsx";
 import { ChallanPrint } from "./pages/sales/ChallanPrint.tsx";
+import { CreditNoteForm } from "./pages/sales/CreditNoteForm.tsx";
+import { CreditNoteList } from "./pages/sales/CreditNoteList.tsx";
+import { CreditNotePrint } from "./pages/sales/CreditNotePrint.tsx";
 import { InvoiceForm } from "./pages/sales/InvoiceForm.tsx";
 import { InvoiceList } from "./pages/sales/InvoiceList.tsx";
 import { InvoicePrint } from "./pages/sales/InvoicePrint.tsx";
@@ -86,6 +89,7 @@ const SALES: SubLink[] = [
   { path: "/sales/orders", label: "Orders" },
   { path: "/sales/challans", label: "Challans" },
   { path: "/sales/invoices", label: "Invoices" },
+  { path: "/sales/credit-notes", label: "Credit notes" },
 ];
 const MASTERS: SubLink[] = [
   { path: "/masters/parties", label: "Parties" },
@@ -120,6 +124,7 @@ export function PrintRoutes() {
       <Route path="quotations/:id" element={<QuotationPrint />} /> {/* under /print/ */}
       <Route path="challans/:id" element={<ChallanPrint />} />
       <Route path="invoices/:id" element={<InvoicePrint />} />
+      <Route path="credit-notes/:id" element={<CreditNotePrint />} />
       <Route path="*" element={<p>Page not found.</p>} />
     </Routes>
   );
@@ -142,6 +147,9 @@ export function AppRoutes() {
       <Route path="/sales/invoices" element={<SubNav label="Sales" links={SALES}><InvoiceList /></SubNav>} />
       <Route path="/sales/invoices/new" element={<SubNav label="Sales" links={SALES}><InvoiceForm /></SubNav>} />
       <Route path="/sales/invoices/:id" element={<SubNav label="Sales" links={SALES}><InvoiceForm /></SubNav>} />
+      <Route path="/sales/credit-notes" element={<SubNav label="Sales" links={SALES}><CreditNoteList /></SubNav>} />
+      <Route path="/sales/credit-notes/new" element={<SubNav label="Sales" links={SALES}><CreditNoteForm /></SubNav>} />
+      <Route path="/sales/credit-notes/:id" element={<SubNav label="Sales" links={SALES}><CreditNoteForm /></SubNav>} />
       <Route path="/masters" element={<Navigate replace to="/masters/parties" />} />
       <Route path="/masters/parties" element={<SubNav label="Masters" links={MASTERS}><PartyList /></SubNav>} />
       <Route path="/masters/parties/new" element={<SubNav label="Masters" links={MASTERS}><PartyForm /></SubNav>} />

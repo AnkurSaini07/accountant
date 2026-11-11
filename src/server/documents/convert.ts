@@ -3,6 +3,7 @@
 // records how much it took in document_links, and no source line can give more than is pending.
 import type { SQL } from "bun";
 import { todayInIndia } from "../../shared/fy.ts";
+import { formatRupees } from "../../shared/money.ts";
 import { formatQty } from "../../shared/quantity.ts";
 import type { DocumentInput, DocumentType } from "../../shared/schemas/document.ts";
 import { ValidationError } from "../errors.ts";
@@ -30,27 +31,36 @@ const LABELS: Record<DocumentType, string> = {
 };
 
 const pending = async (db: SQL, args: { company_id: number; document_ids: number[]; line_ids: number[] }) =>
-  (await pendingQuery.run(db, args)).map((r) => ({ ...r, pending: r.pending! })); // coalesce'd in SQL; reylo can't tell
+  (await pendingQuery.run(db, args)).map((r) => ({ ...r, pending: r.pending!, credited: r.credited! })); // coalesce'd in SQL; reylo can't tell
 export type PendingLine = Awaited<ReturnType<typeof pending>>[number];
 
 /** Every line of these documents with its pending qty (0 when fully converted). */
 export const pendingLines = (db: SQL, { companyId, documentIds }: { companyId: number; documentIds: number[] }) =>
   pending(db, { company_id: companyId, document_ids: documentIds, line_ids: [] });
 
-type NewLine = { item_id: number; qty: number; from_line_id?: number | null };
+type NewLine = { item_id: number; qty: number; taxable: number; from_line_id?: number | null };
+const NOTES: readonly DocumentType[] = ["credit_note", "debit_note"];
 
 /**
  * Inside saveDocument's transaction, once the lines are in: checks each converted line against its
  * source and records the links. Throws ValidationError naming the line's field.
  */
-export async function linkLines(tx: SQL, { companyId, type, partyId, lines, lineIds }: { companyId: number; type: DocumentType; partyId: number; lines: NewLine[]; lineIds: number[] }) {
+export async function linkLines(tx: SQL, { companyId, type, noteReason, partyId, lines, lineIds }: { companyId: number; type: DocumentType; noteReason: string | null; partyId: number; lines: NewLine[]; lineIds: number[] }) {
+  const note = NOTES.includes(type);
+  const source = LABELS[SOURCES[type]?.[0] ?? type];
+  // A note corrects one issued document: every line is one of its lines (FR-4.6, 5.4).
+  const loose = Object.fromEntries(note ? lines.flatMap((l, i) => (l.from_line_id ? [] : [[`lines.${i}.from_line_id`, [`Take this line from the ${source}.`]]])) : []);
+  if (Object.keys(loose).length) throw new ValidationError(`A ${LABELS[type]} only credits lines of its ${source}.`, loose);
   const ids = [...new Set(lines.flatMap((l) => (l.from_line_id ? [l.from_line_id] : [])))];
   if (!ids.length) return;
   await lockLines.run(tx, { ids });
   const sources = new Map((await pending(tx, { company_id: companyId, document_ids: [], line_ids: ids })).map((s) => [s.id, s]));
 
+  if (note && new Set([...sources.values()].map((s) => s.document_id)).size > 1) throw new ValidationError(`A ${LABELS[type]} is against one ${source}.`, { lines: [`Take every line from the same ${source}.`] });
+
   const errors: Record<string, string[]> = {};
   const taken = new Map<number, number>(); // source line → qty this document takes from it so far
+  const value = new Map<number, number>(); // source line → taxable value this note credits from it so far
   lines.forEach((l, i) => {
     if (!l.from_line_id) return;
     const s = sources.get(l.from_line_id);
@@ -63,7 +73,14 @@ export async function linkLines(tx: SQL, { companyId, type, partyId, lines, line
     if (s.item_id !== l.item_id) return at("item_id", `Line ${s.position} of the ${source} is ${s.item_name}; keep that item.`);
     const total = (taken.get(s.id) ?? 0) + l.qty;
     taken.set(s.id, total);
-    if (total > s.pending) at("qty", `Only ${formatQty(s.pending, s.unit_decimals)} ${s.unit} of line ${s.position} of the ${source} is still pending.`);
+    // A rate difference applies to goods already sold, so up to the invoiced qty, and takes none of it.
+    if (noteReason === "rate_difference") {
+      if (total > s.qty) at("qty", `Line ${s.position} of the ${source} is for ${formatQty(s.qty, s.unit_decimals)} ${s.unit}.`);
+    } else if (total > s.pending) at("qty", `Only ${formatQty(s.pending, s.unit_decimals)} ${s.unit} of line ${s.position} of the ${source} is still pending.`);
+    if (!note || errors[`lines.${i}.qty`]) return; // over on qty says it already
+    const credit = (value.get(s.id) ?? 0) + l.taxable;
+    value.set(s.id, credit);
+    if (credit > s.taxable - s.credited) at("rate", `Only ₹${formatRupees(Math.max(0, s.taxable - s.credited))} of line ${s.position} of the ${source} (taxable value) is left to credit.`);
   });
   if (Object.keys(errors).length) throw new ValidationError("Some lines take more than their source has, or come from the wrong document.", errors);
 
@@ -96,18 +113,21 @@ export async function draftFrom(db: SQL, { companyId, type, sourceIds }: { compa
   const open = lines.filter((l) => l.pending > 0);
   if (!open.length) throw new ValidationError("Nothing is pending on these documents.", { source_ids: ["Everything on them has been converted already."] });
   const p = lines[0]!;
+  const note = NOTES.includes(type);
   return {
     type,
     date: todayInIndia(),
     party_id: p.party_id,
     party: { id: p.party_id, name: p.party_name, gstin: p.party_gstin, city: p.party_city, state_code: p.party_state_code },
-    shipping_address: null,
-    place_of_supply: null,
+    // A note is taxed as its invoice was, and quotes its number and date (Rule 53).
+    shipping_address: note ? (p.shipping_address as DocumentInput["shipping_address"]) : null,
+    place_of_supply: note ? p.place_of_supply : null,
     reverse_charge: false,
-    party_ref: null,
-    party_ref_date: null,
+    party_ref: note ? p.number : null,
+    party_ref_date: note ? p.date : null,
     due_date: null,
     challan_type: type === "challan" ? "sale" : null,
+    note_reason: note ? "return" : null,
     vehicle_no: null,
     transporter: null,
     eway_bill_no: null,

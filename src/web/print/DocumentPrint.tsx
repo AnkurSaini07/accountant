@@ -25,6 +25,7 @@ type Props = {
   copy?: string; // "Original for Recipient"…
   dueLabel?: string; // what due_date means here: "Valid until", "Due date"…
   refLabel?: string; // what party_ref means here: "Your enquiry", "Supplier invoice no."…
+  refDateLabel?: string; // its date on a row of its own ("Invoice date") instead of "… dt. <date>"
   partyLabel?: string; // "Bill to" (sales) / "Supplier" (purchases) / "Consignee" (challans)
   toolbar?: ReactNode; // Print / Back buttons on screen; never printed
 };
@@ -33,7 +34,7 @@ const date = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en
 const stateLine = (code: string) => `${stateByCode(code)?.name ?? ""} (${code})`;
 const addressLines = (a: Address | null) => (a ? [a.address, [a.city, a.pincode].filter(Boolean).join(" – ")].filter(Boolean) : []);
 
-export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date", refLabel = "Reference", partyLabel = "Bill to", toolbar }: Props) {
+export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date", refLabel = "Reference", refDateLabel, partyLabel = "Bill to", toolbar }: Props) {
   const office = company.addresses.find((a) => a.is_primary) ?? company.addresses[0];
   const bank = company.bank_accounts.find((b) => b.is_default) ?? company.bank_accounts[0];
   const inter = doc.igst_total > 0;
@@ -43,7 +44,8 @@ export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date"
     [`${title} no.`, doc.number ?? "Draft"],
     ["Date", date(doc.date)],
     ...(doc.due_date ? [[dueLabel, date(doc.due_date)] as [string, string]] : []),
-    ...(doc.party_ref ? [[refLabel, doc.party_ref + (doc.party_ref_date ? ` dt. ${date(doc.party_ref_date)}` : "")] as [string, string]] : []),
+    ...(doc.party_ref ? [[refLabel, doc.party_ref + (doc.party_ref_date && !refDateLabel ? ` dt. ${date(doc.party_ref_date)}` : "")] as [string, string]] : []),
+    ...(doc.party_ref_date && refDateLabel ? [[refDateLabel, date(doc.party_ref_date)] as [string, string]] : []),
     ["Place of supply", stateLine(doc.place_of_supply)],
     ...(doc.vehicle_no ? [["Vehicle no.", doc.vehicle_no] as [string, string]] : []),
     ...(doc.transporter ? [["Transporter", doc.transporter] as [string, string]] : []),

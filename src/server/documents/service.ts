@@ -71,7 +71,7 @@ export function saveDocument(db: SQL, { companyId, userId, id, doc }: { companyI
       }
       const inserted = await insertLines.run(tx, { document_id: saved.id, rows: lines.map((l, i) => ({ ...l, ...totals.lines[i] })) });
       const lineIds = inserted.sort((a, b) => a.position - b.position).map((r) => r.id);
-      await linkLines(tx, { companyId, type: header.type, partyId: header.party_id, lines, lineIds });
+      await linkLines(tx, { companyId, type: header.type, noteReason: header.note_reason, partyId: header.party_id, lines: lines.map((l, i) => ({ ...l, taxable: totals.lines[i]!.taxable })), lineIds });
       const { lines: _l, hsn_summary: _h, sgst_label: _s, ...sums } = totals;
       await setTotals.run(tx, { id: saved.id, ...sums });
       return saved.id;

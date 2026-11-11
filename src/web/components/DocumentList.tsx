@@ -31,7 +31,7 @@ type Props = {
   title: string; // "Quotations"
   noun: string; // "quotations", for the empty states
   basePath: string; // "/sales/quotations": rows go to basePath/:id, New to basePath/new
-  newLabel: string;
+  newLabel?: string; // none: made only from other documents (credit notes from invoices)
   statuses: StatusInfo;
   load: (query: ListQuery) => Promise<{ total: number; rows: ListRow[] }>;
   columns?: { label: string; cell: (r: ListRow) => ReactNode }[]; // between Party and Status
@@ -79,9 +79,11 @@ export function DocumentList({ title, noun, basePath, newLabel, statuses, load, 
         {writers.includes(role) && (
           <div className={style({ display: "flex", gap: 12, flexWrap: "wrap" })}>
             {actions}
-            <LinkButton href={`${basePath}/new`} variant="accent">
-              {newLabel}
-            </LinkButton>
+            {newLabel && (
+              <LinkButton href={`${basePath}/new`} variant="accent">
+                {newLabel}
+              </LinkButton>
+            )}
           </div>
         )}
       </div>

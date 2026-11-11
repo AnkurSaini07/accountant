@@ -6,7 +6,7 @@ with input as (
     '%' || :q::nullable(text) || '%' as pattern, :status::nullable(text) as status,
     :party_id::nullable(integer) as party_id, :date_from::nullable(date) as date_from, :date_to::nullable(date) as date_to
 )
-select d.id, d.number, d.date, d.status, d.party_id, d.party_name, d.due_date, d.party_ref, d.challan_type, d.vehicle_no,
+select d.id, d.number, d.date, d.status, d.party_id, d.party_name, d.due_date, d.party_ref, d.challan_type, d.note_reason, d.vehicle_no,
   d.grand_total::float8 as grand_total,
   -- Total qty and what's still to convert, for "Delivered / Partly / Not yet" on orders and the like.
   (select sum(l.qty) from document_lines l where l.document_id = d.id)::float8 as ordered_qty,

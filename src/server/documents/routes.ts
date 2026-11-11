@@ -16,6 +16,7 @@ import getQuery from "./get.sql";
 import listQuery from "./list.sql";
 import { saveDocument } from "./service.ts";
 import cancelQuery from "./cancel.sql";
+import liveNotes from "./live_notes.sql";
 import setStatus from "./set_status.sql";
 
 type Status = Parameters<typeof setStatus.run>[1]["status"];
@@ -115,6 +116,9 @@ export function documentRoutes<K extends string, S extends Status>(db: SQL, { ty
       const { id } = c.req.valid("param");
       const { status: from } = await found(companyId, id);
       if (!cancel.from.includes(from as S)) throw new ConflictError(`This ${label} is ${from}; it can't be cancelled.`);
+      // ponytail: checked before the update, not under a lock; a note saved in the same instant could slip by. Lock the lines if that ever matters.
+      const notes = await liveNotes.run(db, { id });
+      if (notes.length) throw new ConflictError(`Cancel ${notes.map((n) => `${n.type === "debit_note" ? "debit" : "credit"} note ${n.number}`).join(", ")} first; it is against this ${label}.`);
       const done = await cancelQuery.run(db, { company_id: companyId, id, type, from: [from], reason: c.req.valid("json").reason, user_id: c.get("user").id });
       if (!done) throw new ConflictError(`This ${label} was just changed by someone else. Reload it and try again.`);
       return c.json(await found(companyId, id));
