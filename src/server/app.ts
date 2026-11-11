@@ -9,6 +9,7 @@ import { itemRoutes } from "./items/routes.ts";
 import { ledgerGroupRoutes, ledgerRoutes } from "./ledgers/routes.ts";
 import { gstRateRoutes, unitRoutes } from "./masters/routes.ts";
 import { partyRoutes } from "./parties/routes.ts";
+import { challanRoutes } from "./sales/challans.ts";
 import { quotationRoutes } from "./sales/quotations.ts";
 import { salesOrderRoutes } from "./sales/orders.ts";
 import { seriesRoutes } from "./series/routes.ts";
@@ -43,7 +44,8 @@ export function createApp({
     .route("/ledger-groups", ledgerGroupRoutes(db))
     .route("/ledgers", ledgerRoutes(db))
     .route("/quotations", quotationRoutes(db))
-    .route("/sales-orders", salesOrderRoutes(db));
+    .route("/sales-orders", salesOrderRoutes(db))
+    .route("/challans", challanRoutes(db));
   // Outside the chain on purpose: the test-only login never appears in the client's types.
   if (env.NODE_ENV === "test") app.route("/test", testLoginRoutes(db));
 
