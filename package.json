@@ -12,7 +12,10 @@
     "services:down": "docker compose down",
     "build": "bun scripts/build.ts",
     "migrate": "bun scripts/migrate.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:shots": "bun scripts/docs/shots.ts"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^21.0.4",
@@ -24,7 +27,8 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "typescript": "7.1.0-dev.20261106.1",
-    "unplugin-parcel-macros": "0.2.0"
+    "unplugin-parcel-macros": "0.2.0",
+    "vitepress": "^1.6.4"
   },
   "dependencies": {
     "@internationalized/date": "3.12.4",
