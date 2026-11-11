@@ -28,5 +28,7 @@
     "noPropertyAccessFromIndexSignature": false
   },
   // Reylo: types each .sql import from the dev database (needs `tsc --runExternalCode`).
-  "contentMappers": [{ "package": "reylo", "extensions": [".sql", ".reylo.yaml", ".reylo.yml"] }]
+  "contentMappers": [{ "package": "reylo", "extensions": [".sql", ".reylo.yaml", ".reylo.yml"] }],
+  // Migrations hold several statements; they're run by src/server/migrate.ts, not imported as queries.
+  "exclude": ["node_modules", "dist", "migrations"]
 }
