@@ -24,7 +24,7 @@ const call = (method: string, path: string, body?: unknown, role: Role = "accoun
     headers: { cookie: cookies[role], ...(body === undefined ? {} : { "content-type": "application/json" }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-const json = async (res: Response) => (await res.json()) as any;
+const json = async (res: Response) => (await res.json()) as any; // eslint-disable-line @typescript-eslint/no-explicit-any -- loose JSON for assertions
 const fields = async (res: Response) => (await json(res)).error.details.fields as Record<string, string[]>;
 
 const DL = "07AABCS1234A1Z" + gstinCheckChar("07AABCS1234A1Z");
