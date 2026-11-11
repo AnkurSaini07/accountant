@@ -19,6 +19,26 @@ export function fakeApi(routes: Record<string, Handler>) {
   }) as typeof fetch;
 }
 
+/** The signed-in user most tests use (an admin). */
+export const ME = { id: 1, name: "Asha Verma", email: "asha@example.com", role: "admin" as const };
+
+/** A company as GET /api/company returns it. */
+export const COMPANY = {
+  id: 1,
+  legal_name: "Saini Engineering Works",
+  trade_name: null as string | null,
+  state_code: "06",
+  gstin: null as string | null,
+  pan: null as string | null,
+  phone: null as string | null,
+  email: null as string | null,
+  logo: null as string | null,
+  signature: null as string | null,
+  terms: "",
+  addresses: [{ id: 1, label: "Registered office", address: "Plot 12, Sector 24", city: "Faridabad", pincode: "121005" as string | null, is_primary: true }],
+  bank_accounts: [] as { id?: number; bank_name: string; account_name: string | null; account_number: string; ifsc: string; branch: string | null; is_default: boolean }[],
+};
+
 export const unauthorized = () => Response.json({ error: { code: "UNAUTHORIZED", message: "You are not signed in." } }, { status: 401 });
 
 export function restoreFetch() {

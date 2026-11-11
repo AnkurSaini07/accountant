@@ -5,15 +5,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, spyOn, test } from "bun:test";
 import { MemoryRouter, useLocation } from "react-router";
 import { api } from "./api.ts";
-import { calls, fakeApi, unauthorized } from "./test/fake-api.ts";
+import { COMPANY, calls, fakeApi, ME, unauthorized } from "./test/fake-api.ts";
 import { Shell } from "./App.tsx";
 import { NAV, sectionOf } from "./routes.tsx";
 
-export const ME = { id: 1, name: "Asha Verma", email: "asha@example.com", role: "admin" };
-
 /** Renders the app at `path` as a signed-in user and waits for the layout. */
 async function renderAt(path: string) {
-  fakeApi({ "GET /auth/me": ME });
+  fakeApi({ "GET /auth/me": ME, "GET /company": COMPANY });
   render(
     <MemoryRouter initialEntries={[path]}>
       <Shell />
@@ -69,7 +67,7 @@ describe("app layout", () => {
 
   test("header shows the company and lets the user switch financial year", async () => {
     const { user } = await renderAt("/");
-    expect(screen.getByText("My Company")).toBeInTheDocument();
+    expect(await screen.findByText("Saini Engineering Works")).toBeInTheDocument();
     const picker = () => screen.getByRole("button", { name: /Financial year/ });
 
     const [current, previous] = recentYears();
@@ -145,7 +143,7 @@ describe("sign-in", () => {
   });
 
   test("already signed in: /sign-in goes on to returnTo", async () => {
-    fakeApi({ "GET /auth/me": ME });
+    fakeApi({ "GET /auth/me": ME, "GET /company": COMPANY });
     render(
       <MemoryRouter initialEntries={["/sign-in?returnTo=%2Freports"]}>
         <Shell />
