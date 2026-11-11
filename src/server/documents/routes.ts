@@ -15,6 +15,7 @@ import { draftFrom, pendingLines, SOURCES } from "./convert.ts";
 import getQuery from "./get.sql";
 import listQuery from "./list.sql";
 import { saveDocument } from "./service.ts";
+import cancelQuery from "./cancel.sql";
 import setStatus from "./set_status.sql";
 
 type Status = Parameters<typeof setStatus.run>[1]["status"];
@@ -26,13 +27,16 @@ type Config<K extends string, S extends Status> = {
   statuses: readonly [S, ...S[]];
   moves: Partial<Record<S, readonly S[]>>;
   writers?: [Role, ...Role[]];
+  // POST /:id/cancel: admins only, with a reason; the number stays used (FR-4.5). Not a status move.
+  cancel?: { from: readonly S[] };
 };
 
 const date = z.iso.date();
 const idParam = z.object({ id: z.coerce.number().int().positive() });
+const cancelBody = z.object({ reason: z.string().trim().min(1, "Give the reason for cancelling.").max(500) });
 const ids = z.string().regex(/^\d+(,\d+)*$/, "A comma-separated list of document ids.").transform((s) => [...new Set(s.split(",").map(Number))]);
 
-export function documentRoutes<K extends string, S extends Status>(db: SQL, { type, label, key, input, statuses, moves, writers = ["admin", "accountant"] }: Config<K, S>) {
+export function documentRoutes<K extends string, S extends Status>(db: SQL, { type, label, key, input, statuses, moves, writers = ["admin", "accountant"], cancel }: Config<K, S>) {
   const canWrite = requireRole(...writers);
   const Label = label[0]!.toUpperCase() + label.slice(1);
   const listParams = z
@@ -103,6 +107,16 @@ export function documentRoutes<K extends string, S extends Status>(db: SQL, { ty
         throw new ConflictError(from === "draft" ? `A draft ${label} can't change status yet.` : `This ${label} is ${from}; its status is final.`);
       }
       if (!(await setStatus.run(db, { company_id: companyId, id, type, from, status }))) throw new ConflictError(`This ${label} was just changed by someone else. Reload it and try again.`);
+      return c.json(await found(companyId, id));
+    })
+    .post("/:id/cancel", requireRole("admin"), validate("param", idParam), validate("json", cancelBody), async (c) => {
+      if (!cancel) throw new NotFoundError(`A ${label} isn't cancelled this way.`);
+      const companyId = await currentCompanyId(db);
+      const { id } = c.req.valid("param");
+      const { status: from } = await found(companyId, id);
+      if (!cancel.from.includes(from as S)) throw new ConflictError(`This ${label} is ${from}; it can't be cancelled.`);
+      const done = await cancelQuery.run(db, { company_id: companyId, id, type, from: [from], reason: c.req.valid("json").reason, user_id: c.get("user").id });
+      if (!done) throw new ConflictError(`This ${label} was just changed by someone else. Reload it and try again.`);
       return c.json(await found(companyId, id));
     });
 }

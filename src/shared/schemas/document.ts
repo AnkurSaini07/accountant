@@ -76,8 +76,8 @@ export const challanInput = documentFields
 export const invoiceInput = documentFields
   .omit({ type: true, challan_type: true })
   .transform((d): DocumentInput => ({ ...d, type: "invoice", challan_type: null }));
-/** Invoices are drafts here; Finalize and Cancel come with #52. */
-export const INVOICE_MOVES = {} as const satisfies Record<string, readonly string[]>;
+/** Invoice moves (FR-4.5): Draft → Finalized (locked). Cancelling is its own admin action, with a reason. */
+export const INVOICE_MOVES = { draft: ["finalized"] } as const satisfies Record<string, readonly string[]>;
 export const INVOICE_STATUSES = ["draft", "finalized", "cancelled"] as const;
 /** Challan moves: Draft → Finalized (goods sent) → Cancelled. */
 export const CHALLAN_MOVES = { draft: ["finalized", "cancelled"], finalized: ["cancelled"] } as const satisfies Record<string, readonly string[]>;

@@ -9,7 +9,7 @@ select d.id, d.type, d.fy, d.number, d.date, d.status, d.party_id, d.party_name,
   d.challan_type, d.vehicle_no, d.transporter, d.eway_bill_no,
   d.taxable_total::float8 as taxable_total, d.cgst_total::float8 as cgst_total, d.sgst_total::float8 as sgst_total,
   d.igst_total::float8 as igst_total, d.round_off::float8 as round_off, d.grand_total::float8 as grand_total,
-  d.notes, d.terms, d.created_by, d.created_at, d.updated_at,
+  d.notes, d.terms, d.created_by, d.created_at, d.updated_at, d.cancel_reason, d.cancelled_at,
   coalesce((
     select json_agg(json_build_object('id', l.id, 'position', l.position, 'item_id', l.item_id, 'item_code', i.code, 'item_name', l.item_name,
       'description', l.description, 'hsn', l.hsn, 'unit', l.unit, 'unit_decimals', l.unit_decimals, 'qty', l.qty,
