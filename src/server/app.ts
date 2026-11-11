@@ -6,6 +6,7 @@ import { authRoutes } from "./auth/routes.ts";
 import { testLoginRoutes } from "./auth/test-login.ts";
 import { companyRoutes } from "./company/routes.ts";
 import { itemRoutes } from "./items/routes.ts";
+import { ledgerGroupRoutes, ledgerRoutes } from "./ledgers/routes.ts";
 import { gstRateRoutes, unitRoutes } from "./masters/routes.ts";
 import { partyRoutes } from "./parties/routes.ts";
 import { seriesRoutes } from "./series/routes.ts";
@@ -36,7 +37,9 @@ export function createApp({
     .route("/parties", partyRoutes(db))
     .route("/units", unitRoutes(db))
     .route("/gst-rates", gstRateRoutes(db))
-    .route("/items", itemRoutes(db));
+    .route("/items", itemRoutes(db))
+    .route("/ledger-groups", ledgerGroupRoutes(db))
+    .route("/ledgers", ledgerRoutes(db));
   // Outside the chain on purpose: the test-only login never appears in the client's types.
   if (env.NODE_ENV === "test") app.route("/test", testLoginRoutes(db));
 
