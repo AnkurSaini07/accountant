@@ -4,7 +4,7 @@ import type { SQL } from "bun";
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireRole, type AuthEnv } from "../auth/middleware.ts";
-import { ConflictError, validate } from "../errors.ts";
+import { onConstraint, validate } from "../errors.ts";
 import insertGstRate from "./insert_gst_rate.sql";
 import insertUnit from "./insert_unit.sql";
 import listGstRates from "./list_gst_rates.sql";
@@ -28,23 +28,12 @@ const gstRateInput = z.object({
   effective_from: z.iso.date("Use a date like 2025-09-22."),
 });
 
-/** A unique-key violation on `constraint` → 409 on `field`, instead of a 500. */
-async function unique<T>(constraint: string, field: string, message: string, save: () => Promise<T>): Promise<T> {
-  try {
-    return await save();
-  } catch (e) {
-    const pg = e as { errno?: string; constraint?: string };
-    if (pg.errno === "23505" && pg.constraint === constraint) throw new ConflictError(message, { fields: { [field]: [message] } });
-    throw e;
-  }
-}
-
 export function unitRoutes(db: SQL) {
   return new Hono<AuthEnv>()
     .get("/", async (c) => c.json(await listUnits.run(db, {})))
     .post("/", requireRole("admin"), validate("json", unitInput), async (c) => {
       const unit = c.req.valid("json");
-      return c.json(await unique("units_code_key", "code", `${unit.code} already exists.`, () => insertUnit.run(db, unit)), 201);
+      return c.json(await onConstraint({ units_code_key: ["code", `${unit.code} already exists.`] }, () => insertUnit.run(db, unit)), 201);
     });
 }
 
@@ -53,7 +42,7 @@ export function gstRateRoutes(db: SQL) {
     .get("/", async (c) => c.json(await listGstRates.run(db, {})))
     .post("/", requireRole("admin"), validate("json", gstRateInput), async (c) => {
       const { rate, effective_from } = c.req.valid("json");
-      const saved = await unique("gst_rates_rate_effective_from_key", "rate", `${rate}% from ${effective_from} already exists.`, () =>
+      const saved = await onConstraint({ gst_rates_rate_effective_from_key: ["rate", `${rate}% from ${effective_from} already exists.`] }, () =>
         insertGstRate.run(db, { rate: String(rate), effective_from }),
       );
       return c.json(saved, 201);

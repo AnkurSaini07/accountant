@@ -1,6 +1,6 @@
 // Item data access. Callers (the API, #32) validate input; these functions only read and write.
 import type { SQL } from "bun";
-import type { Paise } from "../../shared/money.ts";
+import type { ItemInput } from "../../shared/schemas/item.ts";
 import { escapeLike } from "../db.ts";
 import getQuery from "./get.sql";
 import insertQuery from "./insert.sql";
@@ -8,24 +8,8 @@ import listQuery from "./list.sql";
 import setActiveQuery from "./set_active.sql";
 import updateQuery from "./update.sql";
 
-export const ITEM_TYPES = ["raw", "semi", "finished", "service"] as const;
-export type ItemType = (typeof ITEM_TYPES)[number];
-
-export type ItemInput = {
-  code: string;
-  name: string;
-  description: string;
-  type: ItemType;
-  hsn: string | null;
-  unit_id: number;
-  gst_rate_id: number;
-  sale_price: Paise;
-  purchase_price: Paise;
-  opening_qty: number; // in the unit's smallest step
-  opening_value: Paise;
-  reorder_level: number | null;
-};
-
+export type { ItemInput } from "../../shared/schemas/item.ts";
+export type ItemType = ItemInput["type"];
 
 export async function listItems(
   db: SQL,
