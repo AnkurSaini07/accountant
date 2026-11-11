@@ -175,6 +175,11 @@ function QuotationEditor({ doc, companyState, onSaved }: { doc: Quotation | null
               {MOVE_LABELS[to]}
             </Button>
           ))}
+          {doc && (
+            <LinkButton href={`/print/quotations/${doc.id}`} variant="secondary">
+              Print
+            </LinkButton>
+          )}
           <LinkButton href={LIST} variant="secondary">
             {readOnly ? "Back to quotations" : "Cancel"}
           </LinkButton>

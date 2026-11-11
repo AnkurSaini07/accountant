@@ -8,7 +8,7 @@ import { AuthProvider, RequireAuth, useAuth, useUser } from "./auth.tsx";
 import { Layout } from "./components/Layout.tsx";
 import { CompanyLoader, displayName } from "./pages/settings/Company.tsx";
 import { NoAccess, SignIn } from "./pages/SignIn.tsx";
-import { AppRoutes } from "./routes.tsx";
+import { AppRoutes, PrintRoutes } from "./routes.tsx";
 import { companyAtom, FINANCIAL_YEARS, financialYearAtom } from "./state.ts";
 
 
@@ -16,7 +16,10 @@ import { companyAtom, FINANCIAL_YEARS, financialYearAtom } from "./state.ts";
 function SignedInApp() {
   return (
     <CompanyLoader>
-      <SignedInLayout />
+      <Routes>
+        <Route path="/print/*" element={<PrintRoutes />} />
+        <Route path="*" element={<SignedInLayout />} />
+      </Routes>
     </CompanyLoader>
   );
 }

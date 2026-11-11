@@ -22,6 +22,7 @@ import { PartyForm } from "./pages/parties/PartyForm.tsx";
 import { PartyList } from "./pages/parties/PartyList.tsx";
 import { QuotationForm } from "./pages/sales/QuotationForm.tsx";
 import { QuotationList } from "./pages/sales/QuotationList.tsx";
+import { QuotationPrint } from "./pages/sales/QuotationPrint.tsx";
 import { financialYearAtom } from "./state.ts";
 
 export type NavSection = { path: string; label: string; icon: ComponentType };
@@ -96,6 +97,16 @@ function SubNav({ label, links, children }: { label: string; links: SubLink[]; c
       </nav>
       {children}
     </>
+  );
+}
+
+/** Print pages: a bare A4 sheet, no app layout. */
+export function PrintRoutes() {
+  return (
+    <Routes>
+      <Route path="quotations/:id" element={<QuotationPrint />} /> {/* under /print/ */}
+      <Route path="*" element={<p>Page not found.</p>} />
+    </Routes>
   );
 }
 
