@@ -4,8 +4,8 @@ with input as (
   select :company_id::integer as company_id, '%' || :q::nullable(text) || '%' as pattern,
     :type::nullable(text) as type, :include_inactive::boolean as include_inactive
 )
-select i.id, i.code, i.name, i.type, i.hsn, u.code as unit, g.rate::float8 as gst_rate,
-  i.sale_price::float8 as sale_price, i.active,
+select i.id, i.code, i.name, i.type, i.hsn, u.code as unit, u.decimals as unit_decimals, g.rate::float8 as gst_rate,
+  i.sale_price::float8 as sale_price, i.purchase_price::float8 as purchase_price, i.active,
   count(*) over ()::int as total
 from input
 join items i on i.company_id = input.company_id

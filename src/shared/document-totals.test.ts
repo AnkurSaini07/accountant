@@ -1,6 +1,6 @@
 // Fictional but realistic Faridabad (Haryana, 06) invoices, every amount worked out by hand.
 import { describe, expect, test } from "bun:test";
-import { documentTotals, type TotalsInput } from "./totals.ts";
+import { documentTotals, type TotalsInput } from "./document-totals.ts";
 
 const HR = "06";
 const DL = "07";

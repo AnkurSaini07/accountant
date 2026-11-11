@@ -1,8 +1,8 @@
-// A document's amounts, from its lines, worked out on the server. The document service (#40) stores
-// these and ignores any amounts a client sends. The maths is calculateGst (src/shared/gst.ts), the
-// same code the form uses for live totals. This only maps the stored line shape onto it.
-import { calculateGst } from "../../shared/gst.ts";
-import { formatQty } from "../../shared/quantity.ts";
+// A document's amounts from its lines. The server (document service, #40) stores these and the forms show
+// them live (TotalsSummary), so both always agree; amounts a client sends are ignored. The maths is
+// calculateGst (gst.ts); this only maps the stored line shape onto it.
+import { calculateGst } from "./gst.ts";
+import { formatQty } from "./quantity.ts";
 
 /** Documents where we buy: the party is the supplier and the goods come to us. */
 export const PURCHASE_TYPES = ["purchase_order", "grn", "purchase_bill", "debit_note"] as const;

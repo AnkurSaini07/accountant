@@ -14,7 +14,7 @@ import insertLines from "./insert_lines.sql";
 import lineItems from "./line_items.sql";
 import lockQuery from "./lock.sql";
 import setTotals from "./set_totals.sql";
-import { documentTotals } from "./totals.ts";
+import { documentTotals } from "../../shared/document-totals.ts";
 import updateQuery from "./update.sql";
 
 export type { DocumentInput } from "../../shared/schemas/document.ts";
