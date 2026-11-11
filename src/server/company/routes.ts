@@ -12,6 +12,7 @@ import { requireRole, type AuthEnv } from "../auth/middleware.ts";
 import { NotFoundError, validate } from "../errors.ts";
 import deleteAddresses from "./delete_addresses.sql";
 import deleteBankAccounts from "./delete_bank_accounts.sql";
+import currentCompanyIdQuery from "./current_company_id.sql";
 import getCompany from "./get_company.sql";
 import insertAddresses from "./insert_addresses.sql";
 import insertBankAccounts from "./insert_bank_accounts.sql";
@@ -106,6 +107,13 @@ export const companyInput = z
     }
     return { ...input, state_code: stateByCode(input.state_code)!.code };
   });
+
+/** The company the app works on. Every company-scoped module asks here, so multi-company (FR-1.2) changes one place. */
+export async function currentCompanyId(db: SQL): Promise<number> {
+  const row = await currentCompanyIdQuery.run(db, {});
+  if (!row) throw new NotFoundError("No company is set up.");
+  return row.id;
+}
 
 async function current(db: SQL) {
   const company = await getCompany.run(db, {});

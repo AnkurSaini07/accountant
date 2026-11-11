@@ -8,9 +8,12 @@ import ShoppingCart from "@react-spectrum/s2/icons/ShoppingCart";
 import UserGroup from "@react-spectrum/s2/icons/UserGroup";
 import Wallet from "@react-spectrum/s2/icons/Wallet";
 import { style } from "@react-spectrum/s2/style" with { type: "macro" };
-import type { ComponentType } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { Link } from "@react-spectrum/s2/Link";
+import type { ComponentType, ReactNode } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router";
+import { parseFyLabel } from "../shared/fy.ts";
 import { CompanySettings } from "./pages/settings/Company.tsx";
+import { Numbering } from "./pages/settings/Numbering.tsx";
 
 export type NavSection = { path: string; label: string; icon: ComponentType };
 
@@ -54,11 +57,36 @@ function NotFound() {
   );
 }
 
-export function AppRoutes() {
+const settingsNav = style({ display: "flex", gap: 16, marginBottom: 16, font: "ui" });
+const SETTINGS = [
+  { path: "/settings/company", label: "Company" },
+  { path: "/settings/numbering", label: "Numbering" },
+];
+
+/** Settings pages share a small tab-like nav. */
+function SettingsPage({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return (
+    <>
+      <nav aria-label="Settings" className={settingsNav}>
+        {SETTINGS.map(({ path, label }) => (
+          <Link key={path} href={path} isStandalone isQuiet={pathname !== path} aria-current={pathname === path ? "page" : undefined}>
+            {label}
+          </Link>
+        ))}
+      </nav>
+      {children}
+    </>
+  );
+}
+
+/** `financialYear` is the header's FY label, e.g. "2026-27". */
+export function AppRoutes({ financialYear }: { financialYear: string }) {
   return (
     <Routes>
       <Route path="/settings" element={<Navigate replace to="/settings/company" />} />
-      <Route path="/settings/company" element={<CompanySettings />} />
+      <Route path="/settings/company" element={<SettingsPage><CompanySettings /></SettingsPage>} />
+      <Route path="/settings/numbering" element={<SettingsPage><Numbering fy={parseFyLabel(financialYear)} /></SettingsPage>} />
       {NAV.filter(({ path }) => path !== "/settings").map(({ path, label }) => (
         <Route key={path} path={path === "/" ? "/" : `${path}/*`} element={<Placeholder label={label} />} />
       ))}
