@@ -72,7 +72,7 @@ export function linesBody(drafts: LineDraft[]): { lines: Line[]; errors: Record<
 
 export type TotalsContext = { type: DocumentInput["type"]; companyState: string; partyState: string | null; placeOfSupply: string | null };
 
-const wrap = style({ display: "flex", flexDirection: "column", gap: 16 });
+const wrap = style({ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }); // minWidth: lets the grid scroll instead of widening the form
 const scroller = style({ overflowX: "auto" }); // on a phone the grid scrolls sideways
 const table = style({ borderCollapse: "collapse", width: "full", font: "body" });
 const th = style({ font: "ui-sm", color: "gray-700", textAlign: "start", paddingX: 4, paddingY: 8, whiteSpace: "nowrap" });

@@ -20,6 +20,8 @@ import { ItemList } from "./pages/items/ItemList.tsx";
 import { LedgerList } from "./pages/ledgers/LedgerList.tsx";
 import { PartyForm } from "./pages/parties/PartyForm.tsx";
 import { PartyList } from "./pages/parties/PartyList.tsx";
+import { QuotationForm } from "./pages/sales/QuotationForm.tsx";
+import { QuotationList } from "./pages/sales/QuotationList.tsx";
 import { financialYearAtom } from "./state.ts";
 
 export type NavSection = { path: string; label: string; icon: ComponentType };
@@ -70,6 +72,7 @@ const SETTINGS: SubLink[] = [
   { path: "/settings/company", label: "Company" },
   { path: "/settings/numbering", label: "Numbering" },
 ];
+const SALES: SubLink[] = [{ path: "/sales/quotations", label: "Quotations" }];
 const MASTERS: SubLink[] = [
   { path: "/masters/parties", label: "Parties" },
   { path: "/masters/items", label: "Items" },
@@ -100,6 +103,10 @@ export function AppRoutes() {
   const financialYear = useAtomValue(financialYearAtom); // the header's FY label, e.g. "2026-27"
   return (
     <Routes>
+      <Route path="/sales" element={<Navigate replace to="/sales/quotations" />} />
+      <Route path="/sales/quotations" element={<SubNav label="Sales" links={SALES}><QuotationList /></SubNav>} />
+      <Route path="/sales/quotations/new" element={<SubNav label="Sales" links={SALES}><QuotationForm /></SubNav>} />
+      <Route path="/sales/quotations/:id" element={<SubNav label="Sales" links={SALES}><QuotationForm /></SubNav>} />
       <Route path="/masters" element={<Navigate replace to="/masters/parties" />} />
       <Route path="/masters/parties" element={<SubNav label="Masters" links={MASTERS}><PartyList /></SubNav>} />
       <Route path="/masters/parties/new" element={<SubNav label="Masters" links={MASTERS}><PartyForm /></SubNav>} />
