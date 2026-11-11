@@ -10,11 +10,11 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // a working week; signin
 
 const hash = (token: string) => new Bun.CryptoHasher("sha256").update(token).digest("hex");
 
-/** Starts a session for `userId`. Returns the token for the cookie. */
-export async function createSession(db: SQL, userId: number, now = new Date()) {
+/** Starts a session for `userId`. Returns the token for the cookie. `idToken` is kept for logout. */
+export async function createSession(db: SQL, userId: number, { now = new Date(), idToken = null as string | null } = {}) {
   const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
-  await createSessionQuery.run(db, { token_hash: hash(token), user_id: userId, expires_at: expiresAt.toISOString() });
+  await createSessionQuery.run(db, { token_hash: hash(token), user_id: userId, expires_at: expiresAt.toISOString(), id_token: idToken });
   return { token, expiresAt };
 }
 
@@ -24,7 +24,9 @@ export async function sessionUser(db: SQL, token: string | undefined) {
   return getSessionQuery.run(db, { token_hash: hash(token) });
 }
 
-/** Ends a session (logout). Unknown tokens are ignored. */
-export async function deleteSession(db: SQL, token: string | undefined) {
-  if (token) await deleteSessionQuery.run(db, { token_hash: hash(token) });
+/** Ends a session (logout). Returns its ID token (for Pocket ID's logout), or null. Unknown tokens are ignored. */
+export async function deleteSession(db: SQL, token: string | undefined): Promise<string | null> {
+  if (!token) return null;
+  const row = await deleteSessionQuery.run(db, { token_hash: hash(token) });
+  return row?.id_token ?? null;
 }
