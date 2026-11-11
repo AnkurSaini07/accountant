@@ -5,6 +5,7 @@ import { createOidc, type Oidc } from "./auth/oidc.ts";
 import { authRoutes } from "./auth/routes.ts";
 import { testLoginRoutes } from "./auth/test-login.ts";
 import { companyRoutes } from "./company/routes.ts";
+import { gstRateRoutes, unitRoutes } from "./masters/routes.ts";
 import { partyRoutes } from "./parties/routes.ts";
 import { seriesRoutes } from "./series/routes.ts";
 import { db as defaultDb } from "./db.ts";
@@ -31,7 +32,9 @@ export function createApp({
     .route("/auth", authRoutes({ db, oidc }))
     .route("/company", companyRoutes(db))
     .route("/series", seriesRoutes(db))
-    .route("/parties", partyRoutes(db));
+    .route("/parties", partyRoutes(db))
+    .route("/units", unitRoutes(db))
+    .route("/gst-rates", gstRateRoutes(db));
   // Outside the chain on purpose: the test-only login never appears in the client's types.
   if (env.NODE_ENV === "test") app.route("/test", testLoginRoutes(db));
 
