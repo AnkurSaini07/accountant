@@ -1,0 +1,6 @@
+{
+  // Reylo types .sql imports through TypeScript 7.1's content mappers. VS Code's built-in TypeScript
+  // and the TS 7 extension's own copy (7.0) don't have them, so use the project's. https://reylo.dev/#editors
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "./node_modules/typescript"
+}
