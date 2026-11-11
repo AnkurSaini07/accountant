@@ -8,10 +8,11 @@ describe("api", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
-  test("unknown API route returns a JSON 404", async () => {
+  // Signed-in 404s are tested in auth/middleware.test.ts.
+  test("without a session, even unknown routes answer 401 (no route discovery)", async () => {
     const res = await app.request("/api/nope", { method: "POST" });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
     expect(res.headers.get("content-type")).toContain("application/json");
-    expect(await res.json()).toEqual({ error: { code: "NOT_FOUND", message: "No route for POST /api/nope" } });
+    expect(await res.json()).toEqual({ error: { code: "UNAUTHORIZED", message: "You are not signed in." } });
   });
 });
