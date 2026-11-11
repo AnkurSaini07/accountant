@@ -72,12 +72,18 @@ export async function linkLines(tx: SQL, { companyId, type, partyId, lines, line
   await acceptSources.run(tx, { line_ids: ids });
 }
 
+/** How a form shows a draft's party and items before they're saved: name, GSTIN, city; code, HSN, unit. */
+export type DraftDisplay = {
+  party: { id: number; name: string; gstin: string | null; city: string | null; state_code: string };
+  lines: (DocumentInput["lines"][number] & { item_code: string; item_name: string; hsn: string | null; unit: string; unit_decimals: number; from_line_id: number })[];
+};
+
 /**
  * A new draft of `type` made from source documents (all for one party): their pending lines, each
- * for its full pending qty, plus the first source's ship-to, references and terms. Edit before
- * saving, or pass it straight to saveDocument (convertDocument).
+ * for its full pending qty, with what a form needs to show them. Edit before saving, or pass it
+ * straight to saveDocument (convertDocument); the display fields are ignored on save.
  */
-export async function draftFrom(db: SQL, { companyId, type, sourceIds }: { companyId: number; type: DocumentType; sourceIds: number[] }): Promise<DocumentInput> {
+export async function draftFrom(db: SQL, { companyId, type, sourceIds }: { companyId: number; type: DocumentType; sourceIds: number[] }): Promise<DocumentInput & DraftDisplay> {
   const lines = await pendingLines(db, { companyId, documentIds: sourceIds });
   const found = new Set(lines.map((l) => l.document_id));
   const missing = sourceIds.filter((id) => !found.has(id));
@@ -89,10 +95,12 @@ export async function draftFrom(db: SQL, { companyId, type, sourceIds }: { compa
   if (new Set(lines.map((l) => l.party_id)).size > 1) throw new ValidationError("These documents are for different parties.", { source_ids: ["Choose documents for one party."] });
   const open = lines.filter((l) => l.pending > 0);
   if (!open.length) throw new ValidationError("Nothing is pending on these documents.", { source_ids: ["Everything on them has been converted already."] });
+  const p = lines[0]!;
   return {
     type,
     date: todayInIndia(),
-    party_id: lines[0]!.party_id,
+    party_id: p.party_id,
+    party: { id: p.party_id, name: p.party_name, gstin: p.party_gstin, city: p.party_city, state_code: p.party_state_code },
     shipping_address: null,
     place_of_supply: null,
     reverse_charge: false,
@@ -105,7 +113,10 @@ export async function draftFrom(db: SQL, { companyId, type, sourceIds }: { compa
     eway_bill_no: null,
     notes: "",
     terms: "",
-    lines: open.map((l) => ({ item_id: l.item_id, description: l.description, qty: l.pending, rate: l.rate, discount_bp: l.discount_bp, gst_rate: l.gst_rate, from_line_id: l.id })),
+    lines: open.map((l) => ({
+      item_id: l.item_id, description: l.description, qty: l.pending, rate: l.rate, discount_bp: l.discount_bp, gst_rate: l.gst_rate, from_line_id: l.id,
+      item_code: l.item_code, item_name: l.item_name, hsn: l.hsn, unit: l.unit, unit_decimals: l.unit_decimals,
+    })),
   };
 }
 

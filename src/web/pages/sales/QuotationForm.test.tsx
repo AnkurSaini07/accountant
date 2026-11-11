@@ -77,7 +77,7 @@ describe("Sales → Quotations → form", () => {
 
     expect(await screen.findByRole("heading", { name: "Quotation QTN/26-27/0009" })).toBeInTheDocument(); // opened after saving
     expect(sent).toEqual([{ method: "POST", path: "/api/quotations", body: {
-      party_id: 3, date: todayInIndia(), due_date: null, terms: "Ex-works Faridabad.", notes: "",
+      party_id: 3, date: todayInIndia(), due_date: null, party_ref: null, party_ref_date: null, terms: "Ex-works Faridabad.", notes: "",
       lines: [{ item_id: 1, description: "", qty: 1000, rate: 12_50, discount_bp: 0, gst_rate: 18 }],
     } }]);
   });
