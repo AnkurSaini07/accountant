@@ -42,3 +42,6 @@ export async function checkDatabase(client: SQL = db, url = databaseUrl()) {
     );
   }
 }
+
+/** "50%_off" → "50\%\_off": the user's search text is matched literally inside ILIKE '%…%'. */
+export const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);

@@ -1,6 +1,7 @@
 // Party data access. Callers (the API, #27) validate input; these functions only read and write.
 import type { SQL } from "bun";
 import type { PartyInput } from "../../shared/schemas/party.ts";
+import { escapeLike } from "../db.ts";
 import deleteAddresses from "./delete_addresses.sql";
 import getQuery from "./get.sql";
 import insertQuery from "./insert.sql";
@@ -12,8 +13,6 @@ import updateQuery from "./update.sql";
 export type { PartyInput } from "../../shared/schemas/party.ts";
 export type PartyAddress = PartyInput["addresses"][number];
 
-/** "50%_off" → "50\%\_off": the user's text is matched literally inside ILIKE '%…%'. */
-const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 export async function listParties(
   db: SQL,
