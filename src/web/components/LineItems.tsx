@@ -25,6 +25,7 @@ export type LineDraft = {
   rate: string; // rupees as typed
   discount: string; // percent as typed
   from_line_id?: number | null; // the source line it converts (a quotation's line on an order…)
+  rejected?: string; // a GRN: rejected qty as typed (qty is then what was accepted)
 };
 type Line = DocumentInput["lines"][number];
 
@@ -51,10 +52,17 @@ export function toLine(d: LineDraft, i: number): { line: Line } | { errors: Reco
   } catch {
     at("rate", "Enter an amount like 250 or 1,250.50.");
   }
+  let rejected = 0;
+  try {
+    rejected = d.rejected?.trim() ? parseQty(d.rejected, d.item?.unit_decimals ?? 0) : 0;
+    if (rejected < 0) at("rejected_qty", "Can't be negative.");
+  } catch (e) {
+    at("rejected_qty", (e as Error).message);
+  }
   const discount = Number(d.discount.trim() || 0);
   if (!/^\d{0,3}(\.\d{0,2})?$/.test(d.discount.trim()) || discount > 100) at("discount_bp", "Enter a discount from 0 to 100%.");
   if (Object.keys(errors).length) return { errors };
-  const line = { item_id: d.item!.id, description: d.description.trim(), qty, rate, discount_bp: Math.round(discount * 100), gst_rate: d.item!.gst_rate };
+  const line = { item_id: d.item!.id, description: d.description.trim(), qty, rate, discount_bp: Math.round(discount * 100), gst_rate: d.item!.gst_rate, ...(rejected > 0 && { rejected_qty: rejected }) };
   return { line: d.from_line_id ? { ...line, from_line_id: d.from_line_id } : line };
 }
 
@@ -81,6 +89,11 @@ const th = style({ font: "ui-sm", color: "gray-700", textAlign: "start", padding
 const thEnd = style({ font: "ui-sm", color: "gray-700", textAlign: "end", paddingX: 4, paddingY: 8, whiteSpace: "nowrap" });
 const td = style({ paddingX: 4, paddingY: 4, verticalAlign: "top" });
 const fixed = style({ paddingX: 4, paddingTop: 12, verticalAlign: "top", whiteSpace: "nowrap", color: "gray-800" });
+// A GRN's extra Rejected column: narrower qty and description cells so Amount still fits.
+const qtyWide = style({ width: 100 });
+const qtyNarrow = style({ width: 80 });
+const descWide = style({ width: 200 });
+const descNarrow = style({ width: 160 });
 const money = style({ paddingX: 4, paddingTop: 12, verticalAlign: "top", whiteSpace: "nowrap", textAlign: "end", fontVariantNumeric: "tabular-nums" });
 
 type Props = {
@@ -89,9 +102,10 @@ type Props = {
   side: "sale" | "purchase"; // which item price fills the rate
   totals: TotalsContext;
   isReadOnly?: boolean;
+  rejected?: boolean; // a GRN: Qty is what was accepted, plus a Rejected column
 };
 
-export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = false }: Props) {
+export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = false, rejected: withRejected = false }: Props) {
   const body = useRef<HTMLTableSectionElement>(null);
   const focusNewLine = useRef(false);
   useEffect(() => {
@@ -149,7 +163,8 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
               <th className={th}>Item</th>
               <th className={th}>Description</th>
               <th className={th}>HSN/SAC</th>
-              <th className={thEnd}>Qty</th>
+              <th className={thEnd}>{withRejected ? "Accepted" : "Qty"}</th>
+              {withRejected && <th className={thEnd}>Rejected</th>}
               <th className={th}>Unit</th>
               <th className={thEnd}>Rate (₹)</th>
               <th className={thEnd}>Disc %</th>
@@ -180,12 +195,17 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
                     />
                   </td>
                   <td className={td}>
-                    <TextField aria-label={`Description, line ${n}`} name={`lines.${i}.description`} isReadOnly={isReadOnly} value={d.description} onChange={(description) => set(d.key, { description })} styles={style({ width: 200 })} />
+                    <TextField aria-label={`Description, line ${n}`} name={`lines.${i}.description`} isReadOnly={isReadOnly} value={d.description} onChange={(description) => set(d.key, { description })} styles={withRejected ? descNarrow : descWide} />
                   </td>
                   <td className={fixed}>{d.item?.hsn ?? ""}</td>
                   <td className={td}>
-                    <TextField aria-label={`Qty, line ${n}`} name={`lines.${i}.qty`} inputMode="decimal" isReadOnly={isReadOnly} value={d.qty} onChange={(qty) => set(d.key, { qty })} styles={style({ width: 100 })} />
+                    <TextField aria-label={`${withRejected ? "Accepted" : "Qty"}, line ${n}`} name={`lines.${i}.qty`} inputMode="decimal" isReadOnly={isReadOnly} value={d.qty} onChange={(qty) => set(d.key, { qty })} styles={withRejected ? qtyNarrow : qtyWide} />
                   </td>
+                  {withRejected && (
+                    <td className={td}>
+                      <TextField aria-label={`Rejected, line ${n}`} name={`lines.${i}.rejected_qty`} inputMode="decimal" isReadOnly={isReadOnly} value={d.rejected ?? ""} onChange={(rejected) => set(d.key, { rejected })} styles={qtyNarrow} />
+                    </td>
+                  )}
                   <td className={fixed}>{d.item?.unit ?? ""}</td>
                   <td className={td}>
                     <TextField aria-label={`Rate, line ${n}`} name={`lines.${i}.rate`} inputMode="decimal" isReadOnly={isReadOnly} value={d.rate} onChange={(rate) => set(d.key, { rate })} styles={style({ width: 110 })} />

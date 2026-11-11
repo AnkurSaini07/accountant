@@ -33,6 +33,7 @@ export function PoForm() {
       termsHelp="Printed on the PO: delivery, payment, inspection, packing."
       progress="Received"
       printPath={(id) => `/print/purchase-orders/${id}`}
+      converts={[{ label: "Receive goods", when: ["finalized"], href: (d) => `/purchase/grns/new?from=${d.id}` }]}
     />
   );
 }
