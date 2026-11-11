@@ -1,6 +1,7 @@
 // /api/ledger-groups (the chart of accounts tree) and /api/ledgers. Everyone signed in reads;
 // accountants and admins write (masters are theirs, REQUIREMENTS §2). Seeded system ledgers are
-// read-only (invoices post to them); ledgers are deactivated, never deleted (FR-3.5).
+// read-only (invoices post to them), and party ledgers change only through their party (#37).
+// Ledgers are deactivated, never deleted (FR-3.5).
 import type { SQL } from "bun";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -52,10 +53,12 @@ export function ledgerRoutes(db: SQL) {
     if (!ledger) throw new NotFoundError(`Ledger ${id} not found.`);
     return ledger;
   };
-  // The database refuses too (protect_system trigger); this turns it into a clear 409, not a 500.
+  // System ledgers: the database refuses too (protect_system), this makes it a clear 409, not a 500.
+  // Party ledgers follow their party (sync_party_ledger), so they change from the party.
   const editable = async (companyId: number, id: number) => {
     const ledger = await found(companyId, id);
     if (ledger.is_system) throw new ConflictError(`${ledger.name} is a system ledger and can't be changed.`);
+    if (ledger.party_id !== null) throw new ConflictError(`${ledger.name} is a party's ledger: change the party in Masters → Parties.`);
   };
 
   return new Hono<AuthEnv>()

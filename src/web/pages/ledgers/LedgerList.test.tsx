@@ -12,9 +12,10 @@ const GROUPS = [
   group(2, "Current Assets", "asset", [group(3, "Bank Accounts", "asset", [], 2), group(4, "Cash-in-Hand", "asset", [], 2)]),
   group(5, "Indirect Expenses", "expense"),
 ];
-const row = (id: number, name: string, group_id: number, group_name: string, extra = {}) => ({ id, name, group_id, group_name, nature: "asset", is_system: false, active: true, ...extra });
+const row = (id: number, name: string, group_id: number, group_name: string, extra = {}) => ({ id, name, group_id, group_name, nature: "asset", is_system: false, party_id: null as number | null, active: true, ...extra });
 const HDFC = row(7, "HDFC Current A/c", 3, "Bank Accounts");
 const CASH = row(1, "Cash", 4, "Cash-in-Hand", { is_system: true });
+const ACME = row(9, "Acme Castings", 6, "Sundry Debtors", { party_id: 3 });
 
 type Role = "admin" | "accountant" | "operator" | "viewer";
 async function open(routes: Record<string, unknown> = {}, role: Role = "accountant") {
@@ -29,7 +30,7 @@ async function open(routes: Record<string, unknown> = {}, role: Role = "accounta
     "GET /company": COMPANY,
     "GET /ledgers": (req: Request) => {
       queries.push(Object.fromEntries(new URL(req.url).searchParams));
-      return { total: 2, ledgers: [HDFC, CASH], page: 1, page_size: PAGE_SIZE };
+      return { total: 3, ledgers: [HDFC, CASH, ACME], page: 1, page_size: PAGE_SIZE };
     },
     "GET /ledger-groups": { groups: GROUPS },
     "POST /ledgers": record(row(8, "SBI A/c", 3, "Bank Accounts")),
@@ -109,6 +110,16 @@ describe("Masters → Ledgers", () => {
     expect(within(dialog).queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  test("a party's ledger opens locked, pointing to the party", async () => {
+    const { user } = await open();
+    await user.click(screen.getByRole("rowheader", { name: /Acme/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Acme Castings" });
+    expect(await within(dialog).findByText(/A party's ledger: it follows the party's name and kind/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox", { name: /Name/ })).toHaveAttribute("readonly");
+    expect(within(dialog).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
   });
 
   test("operators and viewers read only: no New button, dialogs locked", async () => {

@@ -1,6 +1,7 @@
 // The new / edit ledger dialog. The group picker shows the chart of accounts as a tree: a section
 // per primary group, listing the group itself and its sub-groups. System ledgers (Cash, Sales, the
-// GST ledgers…) and readers other than admins and accountants see it read-only.
+// GST ledgers…), party ledgers (they follow their party) and readers other than admins and
+// accountants see it read-only.
 import { Button } from "@react-spectrum/s2/Button";
 import { ButtonGroup } from "@react-spectrum/s2/ButtonGroup";
 import { Content } from "@react-spectrum/s2/Content";
@@ -37,7 +38,8 @@ export function LedgerDialog({ open, canWrite, onClose, onSaved }: Props) {
 }
 
 function LedgerEditor({ ledger, canWrite, onClose, onSaved }: { ledger: LedgerRow | null; canWrite: boolean; onClose: () => void; onSaved: () => void }) {
-  const locked = !canWrite || !!ledger?.is_system;
+  const partyLedger = ledger?.party_id != null;
+  const locked = !canWrite || !!ledger?.is_system || partyLedger;
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [name, setName] = useState(ledger?.name ?? "");
   const [groupId, setGroupId] = useState<number | null>(ledger?.group_id ?? null);
@@ -91,7 +93,8 @@ function LedgerEditor({ ledger, canWrite, onClose, onSaved }: { ledger: LedgerRo
             }}>
             <div className={stack}>
               {ledger?.is_system && <p className={note}>A system ledger: invoices and vouchers post to it, so it can't be renamed, moved or deactivated.</p>}
-              {!canWrite && !ledger?.is_system && <p className={note}>You can view ledgers; ask an accountant or admin to change them.</p>}
+              {partyLedger && <p className={note}>A party's ledger: it follows the party's name and kind. Change it in Masters → Parties.</p>}
+              {!canWrite && !ledger?.is_system && !partyLedger && <p className={note}>You can view ledgers; ask an accountant or admin to change them.</p>}
               <TextField isReadOnly={locked} isRequired label="Name" name="name" value={name} onChange={setName} autoFocus={!locked} />
               <Picker isDisabled={locked} isRequired label="Group" name="group_id" selectedKey={groupId} onSelectionChange={(k) => k != null && setGroupId(Number(k))}>
                 {groups.map((g) => (
