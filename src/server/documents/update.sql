@@ -5,7 +5,7 @@ with input as (select :place_of_supply::nullable(text) as place_of_supply)
 update documents
 set date = :date::date, party_id = :party_id, shipping_address = :shipping_address::nullable(jsonb),
   place_of_supply = input.place_of_supply, reverse_charge = :reverse_charge, party_ref = :party_ref::nullable(text),
-  party_ref_date = :party_ref_date::nullable(date), due_date = :due_date::nullable(date), challan_type = :challan_type::nullable(text),
+  party_ref_date = :party_ref_date::nullable(date), due_date = :due_date::nullable(date), challan_type = :challan_type::nullable(text), note_reason = :note_reason::nullable(text),
   vehicle_no = :vehicle_no::nullable(text), transporter = :transporter::nullable(text), eway_bill_no = :eway_bill_no::nullable(text),
   notes = :notes, terms = :terms
 from input

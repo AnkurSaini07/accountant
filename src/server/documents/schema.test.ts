@@ -23,6 +23,7 @@ const { id: ITEM } = await one<{ id: number }>(
 
 const doc = (extra: Row = {}) => {
   const d = { company_id: co, type: "invoice", fy: 2026, date: "2026-11-11", party_id: PARTY, ...extra };
+  if (d.type === "credit_note" || d.type === "debit_note") Object.assign(d, { note_reason: "return", ...extra }); // notes must say why
   return one<{ id: number }>(db`insert into documents ${db(d)} returning id`);
 };
 const get = (id: number) => getQuery.run(db, { company_id: co, id });

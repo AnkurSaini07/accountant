@@ -40,6 +40,7 @@ export type Body = { party_id: number; date: string; due_date: string | null; pa
   // Only on types that have them (config.shipTo, config.challanTypes):
   shipping_address?: ShipTo | null;
   challan_type?: "sale" | "job_work" | "approval" | "returnable";
+  note_reason?: "return" | "rate_difference";
   vehicle_no?: string | null;
   transporter?: string | null;
   eway_bill_no?: string | null;
@@ -76,6 +77,7 @@ export type DocConfig = {
   writers?: string[];
   shipTo?: boolean; // a Ship to picker (challans, invoices)
   challanTypes?: Record<string, string>; // a challan: its type (required)
+  noteReasons?: Record<string, string>; // a credit / debit note: why (required)
   transport?: boolean; // vehicle no., transporter, e-way bill no. (challans, invoices)
   reverseCharge?: boolean; // the reverse-charge flag (invoices, bills)
   confirm?: string[]; // more moves to ask about first, e.g. finalizing an invoice locks it
@@ -159,6 +161,7 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
     return a ? { label: a.label, address: a.address ?? "", city: a.city ?? "", pincode: a.pincode, state_code: a.state_code ?? party?.state_code ?? "" } : null;
   });
   const [challanType, setChallanType] = useState<string | null>(start?.challan_type ?? null);
+  const [noteReason, setNoteReason] = useState<string | null>(start?.note_reason ?? null);
   const [vehicle, setVehicle] = useState(start?.vehicle_no ?? "");
   const [transporter, setTransporter] = useState(start?.transporter ?? "");
   const [eway, setEway] = useState(start?.eway_bill_no ?? "");
@@ -202,6 +205,7 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
       party_id: party.id, date, due_date: due, party_ref: ref.trim() || null, party_ref_date: refDate, terms, notes, lines: body.lines,
       ...(config.shipTo && { shipping_address: shipTo }),
       ...(config.challanTypes && { challan_type: challanType as Body["challan_type"] }),
+      ...(config.noteReasons && { note_reason: noteReason as Body["note_reason"] }),
       ...(config.transport && { vehicle_no: vehicle.trim() || null, transporter: transporter.trim() || null, eway_bill_no: eway.trim() || null }),
       ...(config.reverseCharge && { reverse_charge: reverse }),
     };
@@ -251,8 +255,15 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
             <ShipToPicker partyId={party?.id ?? null} value={shipTo} onChange={setShipTo} isReadOnly={readOnly} />
           </div>
         )}
-        {(config.challanTypes || config.transport) && (
+        {(config.challanTypes || config.transport || config.noteReasons) && (
           <div className={row}>
+            {config.noteReasons && <Picker label="Reason" name="note_reason" isRequired isDisabled={readOnly} selectedKey={noteReason} onSelectionChange={(k) => setNoteReason(k === null ? null : String(k))} styles={style({ width: 260 })}>
+              {Object.entries(config.noteReasons).map(([k, v]) => (
+                <PickerItem key={k} id={k}>
+                  {v}
+                </PickerItem>
+              ))}
+            </Picker>}
             {config.challanTypes && <Picker label="Challan type" name="challan_type" isRequired isDisabled={readOnly} selectedKey={challanType} onSelectionChange={(k) => setChallanType(k === null ? null : String(k))} styles={style({ width: 220 })}>
               {Object.entries(config.challanTypes).map(([k, v]) => (
                 <PickerItem key={k} id={k}>

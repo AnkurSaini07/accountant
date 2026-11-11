@@ -37,6 +37,7 @@ export function InvoiceForm() {
       transport
       reverseCharge
       printPath={(id) => `/print/invoices/${id}`}
+      converts={[{ label: "Create credit note", when: ["finalized"], href: (d) => `/sales/credit-notes/new?from=${d.id}` }]}
     />
   );
 }

@@ -10,6 +10,9 @@ export const DOCUMENT_TYPES = [
 ] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 export const CHALLAN_TYPES = ["sale", "job_work", "approval", "returnable"] as const;
+/** Why a credit / debit note: goods returned (qty and value) or a rate difference (value only). */
+export const NOTE_REASONS = ["return", "rate_difference"] as const;
+const NOTE_TYPES: readonly DocumentType[] = ["credit_note", "debit_note"];
 
 const isoDate = z.iso.date("Enter a date.");
 const text = (max: number) => z.string().trim().max(max).nullish().transform((v) => v || null);
@@ -39,6 +42,7 @@ export const documentFields = z.object({
   party_ref_date: isoDate.nullish().transform((v) => v ?? null),
   due_date: isoDate.nullish().transform((v) => v ?? null),
   challan_type: z.enum(CHALLAN_TYPES).nullish().transform((v) => v ?? null),
+  note_reason: z.enum(NOTE_REASONS).nullish().transform((v) => v ?? null),
   vehicle_no: text(20),
   transporter: text(100),
   eway_bill_no: z.string().nullish().transform((v) => v?.replace(/\s/g, "") || null).refine((v) => v === null || /^[0-9]{12}$/.test(v), "E-way bill number is 12 digits."),
@@ -50,14 +54,15 @@ export const documentFields = z.object({
 export const documentInput = documentFields.superRefine((d, ctx) => {
   if (d.type === "challan" && !d.challan_type) ctx.addIssue({ code: "custom", path: ["challan_type"], message: "Choose the challan type." });
   if (d.type !== "challan" && d.challan_type) ctx.addIssue({ code: "custom", path: ["challan_type"], message: "Only challans have a challan type." });
+  if (NOTE_TYPES.includes(d.type) !== !!d.note_reason) ctx.addIssue({ code: "custom", path: ["note_reason"], message: NOTE_TYPES.includes(d.type) ? "Choose why: goods returned or a rate difference." : "Only credit and debit notes have a reason." });
 });
 export type DocumentInput = z.output<typeof documentInput>;
 
 /** One non-challan type's input: no type to send (the URL says it) and no challan fields. */
 const inputFor = (type: Exclude<DocumentType, "challan">) =>
   documentFields
-    .omit({ type: true, challan_type: true, vehicle_no: true, transporter: true, eway_bill_no: true })
-    .transform((d): DocumentInput => ({ ...d, type, challan_type: null, vehicle_no: null, transporter: null, eway_bill_no: null }));
+    .omit({ type: true, challan_type: true, note_reason: true, vehicle_no: true, transporter: true, eway_bill_no: true })
+    .transform((d): DocumentInput => ({ ...d, type, challan_type: null, note_reason: null, vehicle_no: null, transporter: null, eway_bill_no: null }));
 
 /** A quotation (FR-4.1). */
 export const quotationInput = inputFor("quotation");
@@ -69,13 +74,13 @@ export const QUOTATION_MOVES = { draft: ["sent"], sent: ["accepted", "rejected",
 export const QUOTATION_STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
 /** A delivery challan (FR-4.3): its type is required; vehicle, transporter and e-way bill are optional. */
 export const challanInput = documentFields
-  .omit({ type: true })
+  .omit({ type: true, note_reason: true })
   .extend({ challan_type: z.enum(CHALLAN_TYPES, "Choose the challan type.") })
-  .transform((d): DocumentInput => ({ ...d, type: "challan" }));
+  .transform((d): DocumentInput => ({ ...d, type: "challan", note_reason: null }));
 /** A tax invoice (FR-4.4): transport details and e-way bill like a challan, but no challan type. */
 export const invoiceInput = documentFields
-  .omit({ type: true, challan_type: true })
-  .transform((d): DocumentInput => ({ ...d, type: "invoice", challan_type: null }));
+  .omit({ type: true, challan_type: true, note_reason: true })
+  .transform((d): DocumentInput => ({ ...d, type: "invoice", challan_type: null, note_reason: null }));
 /** Invoice moves (FR-4.5): Draft → Finalized (locked). Cancelling is its own admin action, with a reason. */
 export const INVOICE_MOVES = { draft: ["finalized"] } as const satisfies Record<string, readonly string[]>;
 export const INVOICE_STATUSES = ["draft", "finalized", "cancelled"] as const;
@@ -85,3 +90,9 @@ export const CHALLAN_STATUSES = ["draft", "finalized", "cancelled"] as const;
 /** Sales order moves (FR-4.2): Draft → Finalized (confirmed; challans and invoices can be made from it) → Cancelled. */
 export const SALES_ORDER_MOVES = { draft: ["finalized", "cancelled"], finalized: ["cancelled"] } as const satisfies Record<string, readonly string[]>;
 export const SALES_ORDER_STATUSES = ["draft", "finalized", "cancelled"] as const;
+/** A credit note (FR-4.6) against a finalized invoice: why is required; party_ref / party_ref_date
+ *  are the invoice's number and date. Moves and statuses as an invoice's. */
+export const creditNoteInput = documentFields
+  .omit({ type: true, challan_type: true, vehicle_no: true, transporter: true, eway_bill_no: true })
+  .extend({ note_reason: z.enum(NOTE_REASONS, "Choose why: goods returned or a rate difference.") })
+  .transform((d): DocumentInput => ({ ...d, type: "credit_note", challan_type: null, vehicle_no: null, transporter: null, eway_bill_no: null }));
