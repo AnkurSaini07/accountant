@@ -53,11 +53,20 @@ export const documentInput = documentFields.superRefine((d, ctx) => {
 });
 export type DocumentInput = z.output<typeof documentInput>;
 
-/** A quotation (FR-4.1): no type to send (it's a quotation) and no challan fields. */
-export const quotationInput = documentFields
-  .omit({ type: true, challan_type: true, vehicle_no: true, transporter: true, eway_bill_no: true })
-  .transform((d): DocumentInput => ({ ...d, type: "quotation", challan_type: null, vehicle_no: null, transporter: null, eway_bill_no: null }));
+/** One non-challan type's input: no type to send (the URL says it) and no challan fields. */
+const inputFor = (type: Exclude<DocumentType, "challan">) =>
+  documentFields
+    .omit({ type: true, challan_type: true, vehicle_no: true, transporter: true, eway_bill_no: true })
+    .transform((d): DocumentInput => ({ ...d, type, challan_type: null, vehicle_no: null, transporter: null, eway_bill_no: null }));
+
+/** A quotation (FR-4.1). */
+export const quotationInput = inputFor("quotation");
+/** A sales order (FR-4.2): party_ref / party_ref_date are the customer's PO number and date. */
+export const salesOrderInput = inputFor("sales_order");
 
 /** Quotation status moves (FR-4.1): Draft → Sent → Accepted / Rejected / Expired. */
 export const QUOTATION_MOVES = { draft: ["sent"], sent: ["accepted", "rejected", "expired"] } as const satisfies Record<string, readonly string[]>;
 export const QUOTATION_STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
+/** Sales order moves (FR-4.2): Draft → Finalized (confirmed; challans and invoices can be made from it) → Cancelled. */
+export const SALES_ORDER_MOVES = { draft: ["finalized", "cancelled"], finalized: ["cancelled"] } as const satisfies Record<string, readonly string[]>;
+export const SALES_ORDER_STATUSES = ["draft", "finalized", "cancelled"] as const;

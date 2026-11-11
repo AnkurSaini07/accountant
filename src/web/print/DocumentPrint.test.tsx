@@ -20,7 +20,7 @@ const company = {
 };
 const line = (position: number, extra = {}) => ({
   id: position, position, item_id: 1, item_code: "FG-101", item_name: "Hex Bolt M10 x 50", description: "", hsn: "73181500", unit: "NOS", unit_decimals: 0,
-  qty: 1000, rate: 12_50, discount_bp: 0, gst_rate: 18, taxable: 12_500_00, cgst: 1_125_00, sgst: 1_125_00, igst: 0, from_line_id: null, ...extra,
+  qty: 1000, rate: 12_50, discount_bp: 0, gst_rate: 18, taxable: 12_500_00, cgst: 1_125_00, sgst: 1_125_00, igst: 0, from_line_id: null, pending: 0, ...extra,
 });
 const doc = (extra: Partial<PrintDocument> = {}): PrintDocument => ({
   id: 9, type: "quotation", fy: 2026, number: "QTN/26-27/0009", date: "2026-11-11", status: "sent", party_id: 3, party_name: "Acme Castings Pvt Ltd",
