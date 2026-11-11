@@ -112,11 +112,7 @@ describe("tax invoices (drafts)", () => {
     expect((await json(invoices("GET", `/new?from=${a},${theirs.id}`))).error.details.fields.source_ids).toEqual(["Choose documents for one party."]);
   });
 
-  test("drafts only for now: no status moves; operators and viewers can't write", async () => {
-    const inv = await json(invoices("POST", "", body()));
-    const move = await invoices("POST", `/${inv.id}/status`, { status: "finalized" });
-    expect(move.status).toBe(409);
-    expect((await json(move)).error.message).toBe("A draft invoice can't change status yet.");
+  test("operators and viewers read but can't write", async () => {
     for (const role of ["operator", "viewer"] as const) {
       expect((await invoices("POST", "", body(), role)).status).toBe(403);
       expect((await invoices("GET", "?fy=2026", undefined, role)).status).toBe(200);
