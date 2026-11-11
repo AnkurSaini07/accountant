@@ -27,6 +27,7 @@
     "unplugin-parcel-macros": "0.2.0"
   },
   "dependencies": {
+    "@internationalized/date": "3.12.4",
     "@react-spectrum/s2": "^1.8.2",
     "hono": "4.13.17",
     "jotai": "^3.0.1",
