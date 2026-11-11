@@ -11,5 +11,5 @@ join ledgers l on l.company_id = input.company_id
 join ledger_groups g on g.id = l.group_id
 where (input.pattern is null or l.name ilike input.pattern or g.name ilike input.pattern)
   and (input.include_inactive or l.active)
-order by lower(l.name), l.id
+order by lower(g.name), lower(l.name), l.id -- grouped by ledger group in the list (#36)
 limit :limit offset :offset
