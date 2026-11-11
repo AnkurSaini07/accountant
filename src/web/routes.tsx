@@ -15,6 +15,8 @@ import { Navigate, Route, Routes, useLocation } from "react-router";
 import { parseFyLabel } from "../shared/fy.ts";
 import { CompanySettings } from "./pages/settings/Company.tsx";
 import { Numbering } from "./pages/settings/Numbering.tsx";
+import { PartyForm } from "./pages/parties/PartyForm.tsx";
+import { PartyList } from "./pages/parties/PartyList.tsx";
 import { financialYearAtom } from "./state.ts";
 
 export type NavSection = { path: string; label: string; icon: ComponentType };
@@ -86,6 +88,10 @@ export function AppRoutes() {
   const financialYear = useAtomValue(financialYearAtom); // the header's FY label, e.g. "2026-27"
   return (
     <Routes>
+      <Route path="/masters" element={<Navigate replace to="/masters/parties" />} />
+      <Route path="/masters/parties" element={<PartyList />} />
+      <Route path="/masters/parties/new" element={<PartyForm />} />
+      <Route path="/masters/parties/:id" element={<PartyForm />} />
       <Route path="/settings" element={<Navigate replace to="/settings/company" />} />
       <Route path="/settings/company" element={<SettingsPage><CompanySettings /></SettingsPage>} />
       <Route path="/settings/numbering" element={<SettingsPage><Numbering fy={parseFyLabel(financialYear)} /></SettingsPage>} />
