@@ -1,6 +1,6 @@
 // One error shape for every API response: { error: { code, message, details? } }.
 // Throw an AppError subclass from any route; validate inputs with validate(); onError does the rest.
-import type { Context, ErrorHandler } from "hono";
+import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { validator } from "hono/validator";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -73,9 +73,13 @@ export function fieldErrors(error: z.ZodError): Record<string, string[]> {
  * Route middleware: parses c.req[target] with `schema`, or throws ValidationError (400).
  * Read the typed result with c.req.valid(target).
  */
+/** What a client sends (the RPC client's types): the schema's input. Query, path and form values
+ *  arrive as strings, so those keep the schema's keys (and which are optional) with string values. */
+type Sent<T extends z.ZodType, Target> = Target extends "json" ? z.input<T> : { [K in keyof z.input<T>]: string | string[] };
+
 export const validate = <T extends z.ZodType, Target extends "json" | "query" | "param" | "form">(target: Target, schema: T) =>
   validator(target, async (value) => {
     const result = await schema.safeParseAsync(value);
     if (!result.success) throw new ValidationError("Some fields are invalid.", fieldErrors(result.error));
     return result.data as z.output<T>;
-  });
+  }) as MiddlewareHandler<any, string, { in: { [K in Target]: Sent<T, Target> }; out: { [K in Target]: z.output<T> } }>; // eslint-disable-line @typescript-eslint/no-explicit-any -- any Env, like Hono's own
