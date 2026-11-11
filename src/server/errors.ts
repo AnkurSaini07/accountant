@@ -83,3 +83,20 @@ export const validate = <T extends z.ZodType, Target extends "json" | "query" | 
     if (!result.success) throw new ValidationError("Some fields are invalid.", fieldErrors(result.error));
     return result.data as z.output<T>;
   }) as MiddlewareHandler<any, string, { in: { [K in Target]: Sent<T, Target> }; out: { [K in Target]: z.output<T> } }>; // eslint-disable-line @typescript-eslint/no-explicit-any -- any Env, like Hono's own
+
+/**
+ * Runs a write and turns the named database constraints into field errors instead of a 500:
+ * a unique violation → 409 CONFLICT, a missing reference (foreign key) → 400 VALIDATION.
+ * `constraints` maps a constraint (or unique index) name to [field, message].
+ */
+export async function onConstraint<T>(constraints: Record<string, [field: string, message: string]>, write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (e) {
+    const pg = e as { errno?: string; constraint?: string };
+    const hit = pg.constraint ? constraints[pg.constraint] : undefined;
+    if (hit && pg.errno === "23505") throw new ConflictError(hit[1], { fields: { [hit[0]]: [hit[1]] } });
+    if (hit && pg.errno === "23503") throw new ValidationError(hit[1], { [hit[0]]: [hit[1]] });
+    throw e;
+  }
+}

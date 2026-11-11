@@ -6,7 +6,7 @@ import { z } from "zod";
 import { partyInput } from "../../shared/schemas/party.ts";
 import { requireRole, type AuthEnv } from "../auth/middleware.ts";
 import { currentCompanyId } from "../company/routes.ts";
-import { ConflictError, NotFoundError, validate } from "../errors.ts";
+import { NotFoundError, onConstraint, validate } from "../errors.ts";
 import { createParty, getParty, listParties, setPartyActive, updateParty } from "./parties.ts";
 
 const canWrite = requireRole("admin", "accountant", "operator");
@@ -19,18 +19,9 @@ const listQuery = z.object({
 });
 const idParam = z.object({ id: z.coerce.number().int().positive() });
 
-/** A second party with the same GSTIN: a 409 on the GSTIN field instead of a 500. */
-async function uniqueGstin<T>(save: () => Promise<T>): Promise<T> {
-  try {
-    return await save();
-  } catch (e) {
-    const pg = e as { errno?: string; constraint?: string };
-    if (pg.errno === "23505" && pg.constraint === "parties_company_id_gstin_key") {
-      throw new ConflictError("A party with this GSTIN already exists.", { fields: { gstin: ["A party with this GSTIN already exists."] } });
-    }
-    throw e;
-  }
-}
+// A second party with the same GSTIN: a 409 on the GSTIN field instead of a 500.
+const uniqueGstin = <T>(write: () => Promise<T>) =>
+  onConstraint({ parties_company_id_gstin_key: ["gstin", "A party with this GSTIN already exists."] }, write);
 
 export function partyRoutes(db: SQL) {
   const found = async (companyId: number, id: number) => {
