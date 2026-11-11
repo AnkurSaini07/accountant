@@ -99,7 +99,8 @@ export function documentRoutes<K extends string, S extends Status>(db: SQL, { ty
       const { status: from } = await found(companyId, id);
       const allowed: readonly string[] = moves[from as S] ?? [];
       if (!allowed.includes(status)) {
-        throw new ConflictError(allowed.length ? `A ${from} ${label} can be marked ${allowed.join(" or ")}, not ${status}.` : `This ${label} is ${from}; its status is final.`);
+        if (allowed.length) throw new ConflictError(`A ${from} ${label} can be marked ${allowed.join(" or ")}, not ${status}.`);
+        throw new ConflictError(from === "draft" ? `A draft ${label} can't change status yet.` : `This ${label} is ${from}; its status is final.`);
       }
       if (!(await setStatus.run(db, { company_id: companyId, id, type, from, status }))) throw new ConflictError(`This ${label} was just changed by someone else. Reload it and try again.`);
       return c.json(await found(companyId, id));
