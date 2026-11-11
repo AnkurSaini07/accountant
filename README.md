@@ -29,6 +29,8 @@ This project was created using `bun init` in bun v1.4.4. [Bun](https://bun.com) 
 
 ## Dev services (Postgres + Pocket ID)
 
+Production install, backups and upgrades: [docs/OPERATIONS.md](docs/OPERATIONS.md). Adding staff, roles and login codes: [docs/AUTH.md](docs/AUTH.md).
+
 Needs [OrbStack](https://orbstack.dev), which gives each container an HTTPS `*.orb.local` domain.
 
 ```bash
