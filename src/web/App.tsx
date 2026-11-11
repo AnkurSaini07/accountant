@@ -3,23 +3,17 @@
 import { Provider } from "@react-spectrum/s2/Provider";
 import { useState } from "react";
 import { BrowserRouter, useHref, useNavigate } from "react-router";
+import { fyLabel, recentFys } from "../shared/fy.ts";
 import { Layout } from "./components/Layout.tsx";
 import { AppRoutes } from "./routes.tsx";
 
-// ponytail: placeholder until the company profile API (#22) and FY utils (#11) exist.
+// ponytail: placeholder until the company profile API (#22) exists.
 const COMPANY_NAME = "My Company";
-function recentFinancialYears(today = new Date(), count = 3): string[] {
-  const startYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1; // FY starts 1 April
-  return Array.from({ length: count }, (_, i) => {
-    const y = startYear - i;
-    return `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
-  });
-}
 
 /** Everything below the router; tests render this inside a MemoryRouter. */
 export function Shell() {
   const navigate = useNavigate();
-  const financialYears = recentFinancialYears();
+  const financialYears = recentFys(3).map(fyLabel);
   const [financialYear, setFinancialYear] = useState(financialYears[0]!);
 
   return (
