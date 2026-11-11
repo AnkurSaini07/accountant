@@ -20,6 +20,7 @@ async function open(url = "/masters/parties", parties: Party[] = [SHARMA, GUPTA]
   fakeApi({
     "GET /auth/me": ME,
     "GET /company": COMPANY,
+    "GET /parties/2": { ...GUPTA, pan: null, contact_person: null, email: null, credit_days: 0, credit_limit: null, updated_at: "", addresses: [] },
     "GET /parties": (req: Request) => {
       const query = Object.fromEntries(new URL(req.url).searchParams);
       queries.push(query);
@@ -51,8 +52,7 @@ describe("Masters → Parties", () => {
   test("clicking a row opens that party", async () => {
     const { user } = await open();
     await user.click(await screen.findByRole("rowheader", { name: /Gupta Traders/ }));
-    // The party form is #29; until then /masters/parties/:id lands on the Masters placeholder.
-    expect(await screen.findByRole("heading", { name: "Masters" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Gupta Traders" })).toBeInTheDocument(); // the party form
   });
 
   test("inactive parties carry a badge; consumers say so instead of a GSTIN", async () => {
