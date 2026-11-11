@@ -72,6 +72,13 @@ export const challanInput = documentFields
   .omit({ type: true })
   .extend({ challan_type: z.enum(CHALLAN_TYPES, "Choose the challan type.") })
   .transform((d): DocumentInput => ({ ...d, type: "challan" }));
+/** A tax invoice (FR-4.4): transport details and e-way bill like a challan, but no challan type. */
+export const invoiceInput = documentFields
+  .omit({ type: true, challan_type: true })
+  .transform((d): DocumentInput => ({ ...d, type: "invoice", challan_type: null }));
+/** Invoices are drafts here; Finalize and Cancel come with #52. */
+export const INVOICE_MOVES = {} as const satisfies Record<string, readonly string[]>;
+export const INVOICE_STATUSES = ["draft", "finalized", "cancelled"] as const;
 /** Challan moves: Draft → Finalized (goods sent) → Cancelled. */
 export const CHALLAN_MOVES = { draft: ["finalized", "cancelled"], finalized: ["cancelled"] } as const satisfies Record<string, readonly string[]>;
 export const CHALLAN_STATUSES = ["draft", "finalized", "cancelled"] as const;
