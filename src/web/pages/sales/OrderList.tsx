@@ -2,6 +2,7 @@
 import { Badge } from "@react-spectrum/s2/Badge";
 import { call, client } from "../../api.ts";
 import { DocumentList, type ListRow, type StatusInfo } from "../../components/DocumentList.tsx";
+import { FromQuotations } from "./FromQuotations.tsx";
 
 export const ORDER_STATUS: StatusInfo = {
   draft: { label: "Draft", badge: "neutral" },
@@ -26,6 +27,7 @@ export function OrderList() {
       basePath="/sales/orders"
       newLabel="New sales order"
       statuses={ORDER_STATUS}
+      actions={<FromQuotations />}
       load={async (query) => {
         const r = await call(client.api["sales-orders"].$get({ query }));
         return { total: r.total, rows: r.sales_orders };
