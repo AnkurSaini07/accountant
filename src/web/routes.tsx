@@ -25,6 +25,7 @@ import { ChallanList } from "./pages/sales/ChallanList.tsx";
 import { ChallanPrint } from "./pages/sales/ChallanPrint.tsx";
 import { InvoiceForm } from "./pages/sales/InvoiceForm.tsx";
 import { InvoiceList } from "./pages/sales/InvoiceList.tsx";
+import { InvoicePrint } from "./pages/sales/InvoicePrint.tsx";
 import { OrderForm } from "./pages/sales/OrderForm.tsx";
 import { OrderList } from "./pages/sales/OrderList.tsx";
 import { QuotationForm } from "./pages/sales/QuotationForm.tsx";
@@ -118,6 +119,7 @@ export function PrintRoutes() {
     <Routes>
       <Route path="quotations/:id" element={<QuotationPrint />} /> {/* under /print/ */}
       <Route path="challans/:id" element={<ChallanPrint />} />
+      <Route path="invoices/:id" element={<InvoicePrint />} />
       <Route path="*" element={<p>Page not found.</p>} />
     </Routes>
   );

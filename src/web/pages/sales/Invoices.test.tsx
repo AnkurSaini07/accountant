@@ -119,6 +119,7 @@ describe("Sales → Invoices", () => {
     expect(await screen.findByText("This invoice is finalized, so it can't be edited.")).toBeInTheDocument();
     expect(sent.filter((s) => s.method !== "GET").map((s) => `${s.method} ${s.path}`)).toEqual(["PUT /api/invoices/9", "POST /api/invoices/9/status"]);
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Print/ })).toHaveAttribute("href", "/print/invoices/9");
   });
 
   test("an admin cancels a finalized invoice with a reason; it says why afterwards", async () => {

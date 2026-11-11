@@ -36,6 +36,7 @@ export function InvoiceForm() {
       shipTo
       transport
       reverseCharge
+      printPath={(id) => `/print/invoices/${id}`}
     />
   );
 }
