@@ -14,7 +14,7 @@ import { ToastQueue } from "@react-spectrum/s2/Toast";
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { parseGstin } from "../../../shared/gstin.ts";
 import { STATES } from "../../../shared/states.ts";
-import { ApiError, api } from "../../api.ts";
+import { ApiError, call, client } from "../../api.ts";
 import { useUser } from "../../auth.tsx";
 
 export type Address = { id?: number; label: string; address: string; city: string; pincode: string | null; is_primary: boolean };
@@ -49,7 +49,7 @@ const CompanyContext = createContext<CompanyContextValue>({ company: null, setCo
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [company, setCompany] = useState<Company | null>(null);
   useEffect(() => {
-    api.get<Company>("/company").then(setCompany, () => {}); // failures toast
+    call(client.api.company.$get()).then(setCompany, () => {}); // failures toast
   }, []);
   return <CompanyContext.Provider value={{ company, setCompany }}>{children}</CompanyContext.Provider>;
 }
@@ -172,7 +172,7 @@ function CompanyForm({ company, onSaved }: { company: Company; onSaved: (c: Comp
     setSaving(true);
     try {
       const { id: _id, ...body } = draft;
-      const saved = await api.put<Company>("/company", body);
+      const saved = await call(client.api.company.$put({ json: body }));
       setErrors({});
       ToastQueue.positive("Company details saved.", { timeout: 5000 });
       onSaved(saved);

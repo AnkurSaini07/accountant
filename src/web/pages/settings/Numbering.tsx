@@ -10,7 +10,7 @@ import { ToastQueue } from "@react-spectrum/s2/Toast";
 import { useEffect, useState } from "react";
 import { fyLabel } from "../../../shared/fy.ts";
 import { DOC_LABELS, type DocType, formatNumber, MAX_LENGTH } from "../../../shared/numbering.ts";
-import { ApiError, api } from "../../api.ts";
+import { ApiError, call, client } from "../../api.ts";
 import { useUser } from "../../auth.tsx";
 
 export type Series = { doc_type: DocType; prefix: string; padding: number; next_number: number };
@@ -42,7 +42,7 @@ export function Numbering({ fy }: { fy: number }) {
   const [data, setData] = useState<SeriesResponse | null>(null);
   useEffect(() => {
     setData(null);
-    api.get<SeriesResponse>(`/series?fy=${fy}`).then(setData, () => {});
+    call(client.api.series.$get({ query: { fy: String(fy) } })).then(setData, () => {});
   }, [fy]);
   if (!data) return <ProgressCircle aria-label="Loading" isIndeterminate />;
   return <NumberingForm key={`${fy}:${JSON.stringify(data)}`} data={data} onSaved={setData} />;
@@ -59,7 +59,7 @@ function NumberingForm({ data, onSaved }: { data: SeriesResponse; onSaved: (d: S
   async function save() {
     setSaving(true);
     try {
-      const result = await api.put<SeriesResponse>("/series", { fy: data.fy, series });
+      const result = await call(client.api.series.$put({ json: { fy: data.fy, series } }));
       setErrors({});
       ToastQueue.positive("Numbering saved.", { timeout: 5000 });
       onSaved(result);

@@ -1,6 +1,6 @@
 // Party data access. Callers (the API, #27) validate input; these functions only read and write.
 import type { SQL } from "bun";
-import type { Paise } from "../../shared/money.ts";
+import type { PartyInput } from "../../shared/schemas/party.ts";
 import deleteAddresses from "./delete_addresses.sql";
 import getQuery from "./get.sql";
 import insertQuery from "./insert.sql";
@@ -9,27 +9,8 @@ import listQuery from "./list.sql";
 import setActiveQuery from "./set_active.sql";
 import updateQuery from "./update.sql";
 
-export const PARTY_KINDS = ["customer", "supplier", "both"] as const;
-export const REGISTRATION_TYPES = ["regular", "composition", "unregistered", "consumer"] as const;
-export type PartyKind = (typeof PARTY_KINDS)[number];
-export type RegistrationType = (typeof REGISTRATION_TYPES)[number];
-
-export type PartyAddress = { kind: "billing" | "shipping"; label: string | null; address: string; city: string; pincode: string | null; state_code: string };
-export type PartyInput = {
-  name: string;
-  kind: PartyKind;
-  registration_type: RegistrationType;
-  gstin: string | null;
-  pan: string | null;
-  state_code: string;
-  contact_person: string | null;
-  phone: string | null;
-  email: string | null;
-  credit_days: number;
-  credit_limit: Paise | null;
-  opening_balance: Paise; // + Dr, − Cr
-  addresses: PartyAddress[];
-};
+export type { PartyInput } from "../../shared/schemas/party.ts";
+export type PartyAddress = PartyInput["addresses"][number];
 
 /** "50%_off" → "50\%\_off": the user's text is matched literally inside ILIKE '%…%'. */
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);

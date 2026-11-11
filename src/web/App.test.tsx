@@ -4,7 +4,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, spyOn, test } from "bun:test";
 import { MemoryRouter, useLocation } from "react-router";
-import { api } from "./api.ts";
+import { call, client } from "./api.ts";
 import { COMPANY, calls, fakeApi, ME, unauthorized } from "./test/fake-api.ts";
 import { Shell } from "./App.tsx";
 import { NAV, sectionOf } from "./routes.tsx";
@@ -86,8 +86,8 @@ describe("app layout", () => {
 describe("api failures", () => {
   test("show a toast the user can read and dismiss", async () => {
     const { user } = await renderAt("/");
-    fakeApi({ "POST /invoices": Response.json({ error: { code: "CONFLICT", message: "Invoice number INV-1 already exists" } }, { status: 409 }) });
-    await act(() => api.post("/invoices", {}).catch(() => {}));
+    fakeApi({ "GET /company": Response.json({ error: { code: "CONFLICT", message: "Invoice number INV-1 already exists" } }, { status: 409 }) });
+    await act(() => call(client.api.company.$get()).catch(() => {}));
     const toast = await screen.findByRole("alertdialog");
     expect(toast).toHaveTextContent("Invoice number INV-1 already exists");
     await user.click(within(toast).getByRole("button", { name: /close|dismiss/i }));
@@ -162,8 +162,8 @@ describe("sign-in", () => {
 
   test("a 401 mid-session (expired session) sends you to sign in", async () => {
     await renderAt("/sales");
-    fakeApi({ "GET /parties": unauthorized() });
-    await act(() => api.get("/parties").catch(() => {}));
+    fakeApi({ "GET /company": unauthorized() });
+    await act(() => call(client.api.company.$get()).catch(() => {}));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 
