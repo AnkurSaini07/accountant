@@ -14,7 +14,9 @@ select d.id, d.type, d.fy, d.number, d.date, d.status, d.party_id, d.party_name,
     select json_agg(json_build_object('id', l.id, 'position', l.position, 'item_id', l.item_id, 'item_code', i.code, 'item_name', l.item_name,
       'description', l.description, 'hsn', l.hsn, 'unit', l.unit, 'unit_decimals', l.unit_decimals, 'qty', l.qty,
       'rate', l.rate, 'discount_bp', l.discount_bp, 'gst_rate', l.gst_rate::float8, 'taxable', l.taxable,
-      'cgst', l.cgst, 'sgst', l.sgst, 'igst', l.igst) order by l.position)
+      'cgst', l.cgst, 'sgst', l.sgst, 'igst', l.igst,
+      -- The source line it was converted from, sent back unchanged when the draft is saved again.
+      'from_line_id', (select k.from_line_id from document_links k where k.to_line_id = l.id limit 1)) order by l.position)
     from document_lines l join items i on i.id = l.item_id where l.document_id = d.id -- the item's current code, for pickers
   ), '[]'::json) as lines
 from documents d
