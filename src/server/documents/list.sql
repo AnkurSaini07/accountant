@@ -14,7 +14,7 @@ select d.id, d.number, d.date, d.status, d.party_id, d.party_name, d.due_date, d
      select sum(k.qty) from document_links k
      join document_lines t on t.id = k.to_line_id
      join documents td on td.id = t.document_id
-     where k.from_line_id = l.id and td.status <> 'cancelled'
+     where k.from_line_id = l.id and td.status <> 'cancelled' and td.note_reason is distinct from 'rate_difference' -- as pending.sql
    ), 0)) from document_lines l where l.document_id = d.id)::float8 as pending_qty,
   count(*) over ()::int as total
 from input i

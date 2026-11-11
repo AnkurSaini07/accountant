@@ -69,6 +69,10 @@ export const quotationInput = inputFor("quotation");
 /** A sales order (FR-4.2): party_ref / party_ref_date are the customer's PO number and date. */
 export const salesOrderInput = inputFor("sales_order");
 
+/** A purchase order (FR-5.1): due_date is the delivery date; party_ref / party_ref_date the
+ *  supplier's quotation, if any. Moves and statuses as a sales order's. */
+export const purchaseOrderInput = inputFor("purchase_order");
+
 /** Quotation status moves (FR-4.1): Draft → Sent → Accepted / Rejected / Expired. */
 export const QUOTATION_MOVES = { draft: ["sent"], sent: ["accepted", "rejected", "expired"] } as const satisfies Record<string, readonly string[]>;
 export const QUOTATION_STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;

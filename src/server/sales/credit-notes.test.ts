@@ -84,6 +84,7 @@ describe("credit notes", () => {
     // ₹2.50 less on all 1000 bolts: ₹2,500 of the ₹12,500.
     expect((await rate({ rate: 2_50 })).status).toBe(201);
     expect((await json(invoices("GET", `/${inv.id}`))).lines[0].pending).toBe(1000); // the goods stay sold
+    expect((await json(invoices("GET", "?fy=2026&page_size=200"))).invoices.find((r: Row) => r.id === inv.id)).toMatchObject({ pending_qty: 1500 }); // in the list too
     const tooMany = await rate({ qty: 1001, rate: 1_00 });
     expect((await err(tooMany)).details.fields).toEqual({ "lines.0.qty": [`Line 1 of the invoice ${inv.number} is for 1000 NOS.`] });
     const tooMuch = await rate({ rate: 10_01 }); // ₹10,010 > the ₹10,000 left
