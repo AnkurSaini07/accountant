@@ -35,7 +35,7 @@ function SignedInLayout() {
       onFinancialYearChange={setFinancialYear}
       userName={user.name}
       onSignOut={() => void signOut()}>
-      <AppRoutes />
+      <AppRoutes financialYear={financialYear} />
     </Layout>
   );
 }
