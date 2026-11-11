@@ -1,0 +1,82 @@
+// Party data access. Callers (the API, #27) validate input; these functions only read and write.
+import type { SQL } from "bun";
+import type { Paise } from "../../shared/money.ts";
+import deleteAddresses from "./delete_addresses.sql";
+import getQuery from "./get.sql";
+import insertQuery from "./insert.sql";
+import insertAddresses from "./insert_addresses.sql";
+import listQuery from "./list.sql";
+import setActiveQuery from "./set_active.sql";
+import updateQuery from "./update.sql";
+
+export const PARTY_KINDS = ["customer", "supplier", "both"] as const;
+export const REGISTRATION_TYPES = ["regular", "composition", "unregistered", "consumer"] as const;
+export type PartyKind = (typeof PARTY_KINDS)[number];
+export type RegistrationType = (typeof REGISTRATION_TYPES)[number];
+
+export type PartyAddress = { kind: "billing" | "shipping"; label: string | null; address: string; city: string; pincode: string | null; state_code: string };
+export type PartyInput = {
+  name: string;
+  kind: PartyKind;
+  registration_type: RegistrationType;
+  gstin: string | null;
+  pan: string | null;
+  state_code: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  credit_days: number;
+  credit_limit: Paise | null;
+  opening_balance: Paise; // + Dr, − Cr
+  addresses: PartyAddress[];
+};
+
+/** "50%_off" → "50\%\_off": the user's text is matched literally inside ILIKE '%…%'. */
+const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+export async function listParties(
+  db: SQL,
+  companyId: number,
+  { q, kind, includeInactive = false, limit = 50, offset = 0 }: { q?: string; kind?: "customer" | "supplier"; includeInactive?: boolean; limit?: number; offset?: number } = {},
+) {
+  const rows = await listQuery.run(db, {
+    company_id: companyId,
+    q: q?.trim() ? escapeLike(q.trim()) : null,
+    kind: kind ?? null,
+    include_inactive: includeInactive,
+    limit,
+    offset,
+  });
+  return { total: rows[0]?.total ?? 0, parties: rows.map(({ total: _, ...p }) => p) };
+}
+
+export const getParty = (db: SQL, companyId: number, id: number) => getQuery.run(db, { company_id: companyId, id });
+
+async function saveAddresses(tx: SQL, partyId: number, addresses: PartyAddress[]) {
+  await deleteAddresses.run(tx, { party_id: partyId });
+  if (addresses.length) await insertAddresses.run(tx, { party_id: partyId, rows: addresses });
+}
+
+/** Creates a party with its addresses; returns the new id. */
+export function createParty(db: SQL, companyId: number, { addresses, ...party }: PartyInput): Promise<number> {
+  return db.begin(async (tx) => {
+    const { id } = await insertQuery.run(tx, { company_id: companyId, ...party });
+    await saveAddresses(tx, id, addresses);
+    return id;
+  });
+}
+
+/** Replaces a party and its addresses. False when there's no such party. */
+export function updateParty(db: SQL, companyId: number, id: number, { addresses, ...party }: PartyInput): Promise<boolean> {
+  return db.begin(async (tx) => {
+    const updated = await updateQuery.run(tx, { company_id: companyId, id, ...party });
+    if (!updated) return false;
+    await saveAddresses(tx, id, addresses);
+    return true;
+  });
+}
+
+/** Deactivates or reactivates. False when there's no such party. */
+export async function setPartyActive(db: SQL, companyId: number, id: number, active: boolean): Promise<boolean> {
+  return (await setActiveQuery.run(db, { company_id: companyId, id, active })) !== null;
+}
