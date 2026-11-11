@@ -1,9 +1,10 @@
 // Component test pattern for every screen: render, find elements by role/label (never CSS classes,
 // which React Spectrum generates), interact with userEvent, assert on what the user sees.
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
+import { api } from "./api.ts";
 import { Shell } from "./App.tsx";
 import { NAV, sectionOf } from "./routes.tsx";
 
@@ -75,6 +76,23 @@ describe("app layout", () => {
 
     expect(picker()).toHaveTextContent(previous);
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("api failures", () => {
+  test("show a toast the user can read and dismiss", async () => {
+    const { user } = renderAt("/");
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => Response.json({ error: { code: "CONFLICT", message: "Invoice number INV-1 already exists" } }, { status: 409 })) as unknown as typeof fetch;
+    try {
+      await act(() => api.post("/invoices", {}).catch(() => {}));
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    const toast = await screen.findByRole("alertdialog");
+    expect(toast).toHaveTextContent("Invoice number INV-1 already exists");
+    await user.click(within(toast).getByRole("button", { name: /close|dismiss/i }));
+    expect(screen.queryByText("Invoice number INV-1 already exists")).not.toBeInTheDocument();
   });
 });
 

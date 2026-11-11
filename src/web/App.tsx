@@ -1,6 +1,7 @@
 // Import S2 components from their own entry points, not "@react-spectrum/s2": the main index pulls in
 // every component's CSS (783 KB vs 145 KB minified for one page). See docs/adr/0001-ui-library.md.
 import { Provider } from "@react-spectrum/s2/Provider";
+import { ToastContainer } from "@react-spectrum/s2/Toast";
 import { useState } from "react";
 import { BrowserRouter, useHref, useNavigate } from "react-router";
 import { fyLabel, recentFys } from "../shared/fy.ts";
@@ -26,6 +27,8 @@ export function Shell() {
         onFinancialYearChange={setFinancialYear}>
         <AppRoutes />
       </Layout>
+      {/* Shows api.ts failure toasts. */}
+      <ToastContainer placement="bottom" />
     </Provider>
   );
 }
