@@ -12,7 +12,7 @@ select d.id, d.type, d.fy, d.number, d.date, d.status, d.party_id, d.party_name,
   d.notes, d.terms, d.created_by, d.created_at, d.updated_at, d.cancel_reason, d.cancelled_at,
   coalesce((
     select json_agg(json_build_object('id', l.id, 'position', l.position, 'item_id', l.item_id, 'item_code', i.code, 'item_name', l.item_name,
-      'description', l.description, 'hsn', l.hsn, 'unit', l.unit, 'unit_decimals', l.unit_decimals, 'qty', l.qty,
+      'description', l.description, 'hsn', l.hsn, 'unit', l.unit, 'unit_decimals', l.unit_decimals, 'qty', l.qty, 'rejected_qty', l.rejected_qty,
       'rate', l.rate, 'discount_bp', l.discount_bp, 'gst_rate', l.gst_rate::float8, 'taxable', l.taxable,
       'cgst', l.cgst, 'sgst', l.sgst, 'igst', l.igst,
       -- The source line it was converted from, sent back unchanged when the draft is saved again.

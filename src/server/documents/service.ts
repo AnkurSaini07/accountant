@@ -31,6 +31,9 @@ export function saveDocument(db: SQL, { companyId, userId, id, doc }: { companyI
   const fy = fyOf(header.date);
   return onConstraint(CONSTRAINTS, () =>
     db.begin(async (tx) => {
+      // Each type's API schema is narrower than documentInput; this one rule holds for all of them.
+      const rejected = Object.fromEntries(header.type === "grn" ? [] : lines.flatMap((l, i) => (l.rejected_qty ? [[`lines.${i}.rejected_qty`, ["Only GRNs record rejected qty."]]] : [])));
+      if (Object.keys(rejected).length) throw new ValidationError("Only GRNs record rejected qty.", rejected);
       // Every line's item must be this company's: say which line, not just "an item".
       const items = new Map((await lineItems.run(tx, { company_id: companyId, ids: lines.map((l) => l.item_id) })).map((i) => [i.id, i]));
       const missing = Object.fromEntries(lines.flatMap((l, i) => (items.has(l.item_id) ? [] : [[`lines.${i}.item_id`, ["Choose an item from the list."]]])));
