@@ -24,6 +24,7 @@ export type LineDraft = {
   qty: string; // as typed, in the item's unit ("1.250")
   rate: string; // rupees as typed
   discount: string; // percent as typed
+  from_line_id?: number | null; // the source line it converts (a quotation's line on an order…)
 };
 type Line = DocumentInput["lines"][number];
 
@@ -53,7 +54,8 @@ export function toLine(d: LineDraft, i: number): { line: Line } | { errors: Reco
   const discount = Number(d.discount.trim() || 0);
   if (!/^\d{0,3}(\.\d{0,2})?$/.test(d.discount.trim()) || discount > 100) at("discount_bp", "Enter a discount from 0 to 100%.");
   if (Object.keys(errors).length) return { errors };
-  return { line: { item_id: d.item!.id, description: d.description.trim(), qty, rate, discount_bp: Math.round(discount * 100), gst_rate: d.item!.gst_rate } };
+  const line = { item_id: d.item!.id, description: d.description.trim(), qty, rate, discount_bp: Math.round(discount * 100), gst_rate: d.item!.gst_rate };
+  return { line: d.from_line_id ? { ...line, from_line_id: d.from_line_id } : line };
 }
 
 /** The lines to send, or every field error at once. Blank lines (no item, nothing typed) are dropped. */
@@ -172,7 +174,8 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
                       name={`lines.${i}.item_id`}
                       item={d.item}
                       isReadOnly={isReadOnly}
-                      onPick={(item) => set(d.key, { item, rate: rupees(side === "sale" ? item.sale_price : item.purchase_price) })}
+                      // Another item is no longer the source line's item, so it stands on its own.
+                      onPick={(item) => set(d.key, { item, from_line_id: null, rate: rupees(side === "sale" ? item.sale_price : item.purchase_price) })}
                     />
                   </td>
                   <td className={td}>

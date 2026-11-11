@@ -20,6 +20,8 @@ import { ItemList } from "./pages/items/ItemList.tsx";
 import { LedgerList } from "./pages/ledgers/LedgerList.tsx";
 import { PartyForm } from "./pages/parties/PartyForm.tsx";
 import { PartyList } from "./pages/parties/PartyList.tsx";
+import { OrderForm } from "./pages/sales/OrderForm.tsx";
+import { OrderList } from "./pages/sales/OrderList.tsx";
 import { QuotationForm } from "./pages/sales/QuotationForm.tsx";
 import { QuotationList } from "./pages/sales/QuotationList.tsx";
 import { QuotationPrint } from "./pages/sales/QuotationPrint.tsx";
@@ -73,7 +75,10 @@ const SETTINGS: SubLink[] = [
   { path: "/settings/company", label: "Company" },
   { path: "/settings/numbering", label: "Numbering" },
 ];
-const SALES: SubLink[] = [{ path: "/sales/quotations", label: "Quotations" }];
+const SALES: SubLink[] = [
+  { path: "/sales/quotations", label: "Quotations" },
+  { path: "/sales/orders", label: "Orders" },
+];
 const MASTERS: SubLink[] = [
   { path: "/masters/parties", label: "Parties" },
   { path: "/masters/items", label: "Items" },
@@ -118,6 +123,9 @@ export function AppRoutes() {
       <Route path="/sales/quotations" element={<SubNav label="Sales" links={SALES}><QuotationList /></SubNav>} />
       <Route path="/sales/quotations/new" element={<SubNav label="Sales" links={SALES}><QuotationForm /></SubNav>} />
       <Route path="/sales/quotations/:id" element={<SubNav label="Sales" links={SALES}><QuotationForm /></SubNav>} />
+      <Route path="/sales/orders" element={<SubNav label="Sales" links={SALES}><OrderList /></SubNav>} />
+      <Route path="/sales/orders/new" element={<SubNav label="Sales" links={SALES}><OrderForm /></SubNav>} />
+      <Route path="/sales/orders/:id" element={<SubNav label="Sales" links={SALES}><OrderForm /></SubNav>} />
       <Route path="/masters" element={<Navigate replace to="/masters/parties" />} />
       <Route path="/masters/parties" element={<SubNav label="Masters" links={MASTERS}><PartyList /></SubNav>} />
       <Route path="/masters/parties/new" element={<SubNav label="Masters" links={MASTERS}><PartyForm /></SubNav>} />
