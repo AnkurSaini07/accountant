@@ -17,6 +17,7 @@ import { CompanySettings } from "./pages/settings/Company.tsx";
 import { Numbering } from "./pages/settings/Numbering.tsx";
 import { ItemForm } from "./pages/items/ItemForm.tsx";
 import { ItemList } from "./pages/items/ItemList.tsx";
+import { LedgerList } from "./pages/ledgers/LedgerList.tsx";
 import { PartyForm } from "./pages/parties/PartyForm.tsx";
 import { PartyList } from "./pages/parties/PartyList.tsx";
 import { financialYearAtom } from "./state.ts";
@@ -72,6 +73,7 @@ const SETTINGS: SubLink[] = [
 const MASTERS: SubLink[] = [
   { path: "/masters/parties", label: "Parties" },
   { path: "/masters/items", label: "Items" },
+  { path: "/masters/ledgers", label: "Ledgers" },
 ];
 
 /** A section's pages share a small tab-like nav; a link stays current on its sub-pages (/masters/items/42). */
@@ -105,6 +107,7 @@ export function AppRoutes() {
       <Route path="/masters/items" element={<SubNav label="Masters" links={MASTERS}><ItemList /></SubNav>} />
       <Route path="/masters/items/new" element={<SubNav label="Masters" links={MASTERS}><ItemForm /></SubNav>} />
       <Route path="/masters/items/:id" element={<SubNav label="Masters" links={MASTERS}><ItemForm /></SubNav>} />
+      <Route path="/masters/ledgers" element={<SubNav label="Masters" links={MASTERS}><LedgerList /></SubNav>} />
       <Route path="/settings" element={<Navigate replace to="/settings/company" />} />
       <Route path="/settings/company" element={<SubNav label="Settings" links={SETTINGS}><CompanySettings /></SubNav>} />
       <Route path="/settings/numbering" element={<SubNav label="Settings" links={SETTINGS}><Numbering fy={parseFyLabel(financialYear)} /></SubNav>} />

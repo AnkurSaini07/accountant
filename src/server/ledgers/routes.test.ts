@@ -120,6 +120,10 @@ describe("list", () => {
   test("search matches ledger or group name, case-insensitive, LIKE wildcards literal; paged with a total", async () => {
     const all = await json(await call("GET", "/ledgers?page_size=200", undefined, "viewer"));
     expect(all.ledgers.map((l: { name: string }) => l.name)).toContain("Output CGST");
+    // Grouped: by group name, then ledger name (the ledger list shows them so, #36).
+    const keys = all.ledgers.map((l: { group_name: string; name: string }) => [l.group_name.toLowerCase(), l.name.toLowerCase()]);
+    expect(keys).toEqual([...keys].sort((a: string[], b: string[]) => a[0]!.localeCompare(b[0]!) || a[1]!.localeCompare(b[1]!)));
+    expect(keys[0]).toEqual(["bank accounts", expect.any(String)]);
     expect((await json(await call("GET", "/ledgers?q=DUTIES"))).ledgers.length).toBe(6);
     expect((await json(await call("GET", "/ledgers?q=%25"))).total).toBe(0);
     const page = await json(await call("GET", "/ledgers?page=2&page_size=3"));
