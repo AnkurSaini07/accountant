@@ -9,11 +9,13 @@ import UserGroup from "@react-spectrum/s2/icons/UserGroup";
 import Wallet from "@react-spectrum/s2/icons/Wallet";
 import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import { Link } from "@react-spectrum/s2/Link";
+import { useAtomValue } from "jotai";
 import type { ComponentType, ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { parseFyLabel } from "../shared/fy.ts";
 import { CompanySettings } from "./pages/settings/Company.tsx";
 import { Numbering } from "./pages/settings/Numbering.tsx";
+import { financialYearAtom } from "./state.ts";
 
 export type NavSection = { path: string; label: string; icon: ComponentType };
 
@@ -80,8 +82,8 @@ function SettingsPage({ children }: { children: ReactNode }) {
   );
 }
 
-/** `financialYear` is the header's FY label, e.g. "2026-27". */
-export function AppRoutes({ financialYear }: { financialYear: string }) {
+export function AppRoutes() {
+  const financialYear = useAtomValue(financialYearAtom); // the header's FY label, e.g. "2026-27"
   return (
     <Routes>
       <Route path="/settings" element={<Navigate replace to="/settings/company" />} />

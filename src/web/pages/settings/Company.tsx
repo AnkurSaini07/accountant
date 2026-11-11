@@ -1,5 +1,5 @@
 // Settings → Company (FR-1.1): the profile printed on every document. Admins edit; everyone else reads.
-// <CompanyProvider> loads the company once for the whole app (the header shows its name).
+// <CompanyLoader> loads the company once for the whole app (the header shows its name).
 import { ActionButton } from "@react-spectrum/s2/ActionButton";
 import { Badge } from "@react-spectrum/s2/Badge";
 import { Button } from "@react-spectrum/s2/Button";
@@ -11,11 +11,13 @@ import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import { TextArea } from "@react-spectrum/s2/TextArea";
 import { TextField } from "@react-spectrum/s2/TextField";
 import { ToastQueue } from "@react-spectrum/s2/Toast";
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { useAtom, useSetAtom } from "jotai";
+import { type ReactNode, useEffect, useState } from "react";
 import { parseGstin } from "../../../shared/gstin.ts";
 import { STATES } from "../../../shared/states.ts";
 import { ApiError, call, client } from "../../api.ts";
 import { useUser } from "../../auth.tsx";
+import { companyAtom } from "../../state.ts";
 
 export type Address = { id?: number; label: string; address: string; city: string; pincode: string | null; is_primary: boolean };
 export type BankAccount = {
@@ -43,17 +45,14 @@ export type Company = {
   bank_accounts: BankAccount[];
 };
 
-type CompanyContextValue = { company: Company | null; setCompany: (c: Company) => void };
-const CompanyContext = createContext<CompanyContextValue>({ company: null, setCompany: () => {} });
-
-export function CompanyProvider({ children }: { children: ReactNode }) {
-  const [company, setCompany] = useState<Company | null>(null);
+/** Loads the company into companyAtom once, for everything below it (the header shows its name). */
+export function CompanyLoader({ children }: { children: ReactNode }) {
+  const setCompany = useSetAtom(companyAtom);
   useEffect(() => {
     call(client.api.company.$get()).then(setCompany, () => {}); // failures toast
-  }, []);
-  return <CompanyContext.Provider value={{ company, setCompany }}>{children}</CompanyContext.Provider>;
+  }, [setCompany]);
+  return children;
 }
-export const useCompany = () => useContext(CompanyContext);
 
 /** Name for the header: trade name if set, else the legal name. */
 export const displayName = (c: Company | null) => c?.trade_name || c?.legal_name || "";
@@ -139,7 +138,7 @@ function ImageField({ label, value, onChange, readOnly }: { label: string; value
 }
 
 export function CompanySettings() {
-  const { company, setCompany } = useCompany();
+  const [company, setCompany] = useAtom(companyAtom);
   if (!company) return <ProgressCircle aria-label="Loading" isIndeterminate />;
   // key: a save replaces the company (new ids), so the form starts from the saved data again.
   return <CompanyForm key={JSON.stringify(company)} company={company} onSaved={setCompany} />;
