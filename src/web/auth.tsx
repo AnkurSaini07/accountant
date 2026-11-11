@@ -5,7 +5,7 @@ import { ProgressCircle } from "@react-spectrum/s2/ProgressCircle";
 import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation } from "react-router";
-import { api, setUnauthorizedHandler } from "./api.ts";
+import { call, client, setUnauthorizedHandler } from "./api.ts";
 
 export type Role = "admin" | "accountant" | "operator" | "viewer";
 export type User = { id: number; name: string; email: string | null; role: Role };
@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setUnauthorizedHandler(() => setState({ status: "signedOut" }));
     let live = true;
-    api.get<User>("/auth/me").then(
+    call(client.api.auth.me.$get()).then(
       (user) => live && setState({ status: "signedIn", user }),
       () => live && setState({ status: "signedOut" }), // 401, or the server is down (a toast says so)
     );
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    const { endSessionUrl } = await api.post<{ endSessionUrl: string | null }>("/auth/logout");
+    const { endSessionUrl } = await call(client.api.auth.logout.$post());
     // Leave the app entirely: Pocket ID ends its session too, then sends the browser back to "/".
     window.location.assign(endSessionUrl ?? "/sign-in");
   }, []);

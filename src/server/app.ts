@@ -25,17 +25,23 @@ export function createApp({
 
   app.use((c, next) => (PUBLIC.test(c.req.path) ? next() : sessionRequired(c, next)));
 
-  app.get("/health", (c) => c.json({ ok: true }));
-  app.route("/auth", authRoutes({ db, oidc }));
-  app.route("/company", companyRoutes(db));
-  app.route("/series", seriesRoutes(db));
-  app.route("/parties", partyRoutes(db));
+  // One chain, so its type carries every route: the web client (src/web/api.ts) is typed from it.
+  const routes = app
+    .get("/health", (c) => c.json({ ok: true }))
+    .route("/auth", authRoutes({ db, oidc }))
+    .route("/company", companyRoutes(db))
+    .route("/series", seriesRoutes(db))
+    .route("/parties", partyRoutes(db));
+  // Outside the chain on purpose: the test-only login never appears in the client's types.
   if (env.NODE_ENV === "test") app.route("/test", testLoginRoutes(db));
 
   app.notFound(onNotFound);
   app.onError(onError);
-  return app;
+  return routes;
 }
+
+/** Every API route with its input and output types, for `hc<AppType>()` in the browser. */
+export type AppType = ReturnType<typeof createApp>;
 
 // The app Bun.serve() runs (src/server/index.ts).
 export const app = createApp();

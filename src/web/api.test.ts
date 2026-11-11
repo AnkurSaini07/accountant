@@ -1,6 +1,6 @@
 import { ToastQueue } from "@react-spectrum/s2/Toast";
 import { afterAll, afterEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { ApiError, api } from "./api.ts";
+import { ApiError, call, client } from "./api.ts";
 
 const realFetch = globalThis.fetch;
 const toast = spyOn(ToastQueue, "negative").mockImplementation(() => () => {});
@@ -31,29 +31,30 @@ async function caught(p: Promise<unknown>): Promise<ApiError> {
 describe("success", () => {
   test("GET returns parsed JSON and sends the session cookie", async () => {
     const fetchMock = respond(200, { id: 42, name: "Sharma Steels" });
-    expect(await api.get<{ id: number; name: string }>("/parties/42")).toEqual({ id: 42, name: "Sharma Steels" });
+    expect(await call(client.api.parties[":id"].$get({ param: { id: "42" } }))).toMatchObject({ id: 42, name: "Sharma Steels" });
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe("/api/parties/42");
-    expect(init).toMatchObject({ method: "GET", credentials: "same-origin", body: undefined });
+    expect(String(url)).toEndWith("/api/parties/42");
+    expect(init).toMatchObject({ method: "GET", credentials: "same-origin" });
     expect(toast).not.toHaveBeenCalled();
   });
 
-  test("POST/PUT send JSON bodies; empty responses resolve to undefined", async () => {
-    const fetchMock = respond(201, { id: 7 });
-    await api.post("/parties", { name: "A" });
-    expect(fetchMock.mock.calls[0]![1]).toMatchObject({ method: "POST", body: '{"name":"A"}', headers: { "content-type": "application/json" } });
+  test("query strings and JSON bodies are sent as the route declares", async () => {
+    let fetchMock = respond(200, { fy: 2026, series: [] });
+    await call(client.api.series.$get({ query: { fy: "2026" } }));
+    expect(String(fetchMock.mock.calls[0]![0])).toEndWith("/api/series?fy=2026");
 
-    respond(204);
-    expect(await api.delete("/parties/7")).toBeUndefined();
-    respond(200, { ok: true });
-    expect(await api.put("/parties/7", { name: "B" })).toEqual({ ok: true });
+    fetchMock = respond(200, { fy: 2026, series: [] });
+    await call(client.api.series.$put({ json: { fy: 2026, series: [] } }));
+    const init = fetchMock.mock.calls[0]![1]!;
+    expect(init).toMatchObject({ method: "PUT", body: '{"fy":2026,"series":[]}' });
+    expect(new Headers(init.headers).get("content-type")).toBe("application/json");
   });
 });
 
 describe("failures", () => {
   test("400 with field errors: ApiError with fieldErrors, no toast (the form shows them)", async () => {
     respond(400, { error: { code: "VALIDATION", message: "Some fields are invalid.", details: { fields: { "lines.0.qty": ["Too small"] } } } });
-    const e = await caught(api.post("/invoices", {}));
+    const e = await caught(call(client.api.auth.logout.$post()));
     expect(e).toBeInstanceOf(ApiError);
     expect([e.status, e.code, e.message]).toEqual([400, "VALIDATION", "Some fields are invalid."]);
     expect(e.fieldErrors).toEqual({ "lines.0.qty": ["Too small"] });
@@ -62,7 +63,7 @@ describe("failures", () => {
 
   test("401: ApiError, no toast (the app redirects to sign-in)", async () => {
     respond(401, { error: { code: "UNAUTHORIZED", message: "You are not signed in." } });
-    const e = await caught(api.get("/parties"));
+    const e = await caught(call(client.api.company.$get()));
     expect([e.status, e.code]).toEqual([401, "UNAUTHORIZED"]);
     expect(toast).not.toHaveBeenCalled();
   });
@@ -76,7 +77,7 @@ describe("failures", () => {
     ] as const) {
       toast.mockClear();
       respond(status, { error: { code, message } });
-      const e = await caught(api.get("/x"));
+      const e = await caught(call(client.api.company.$get()));
       expect([e.status, e.code, e.message, e.fieldErrors]).toEqual([status, code, message, {}]);
       expect(toast).toHaveBeenCalledWith(message, { timeout: 8000 });
     }
@@ -84,7 +85,7 @@ describe("failures", () => {
 
   test("a non-JSON error page still gives a readable error", async () => {
     respond(502, undefined, "<html>Bad Gateway</html>");
-    const e = await caught(api.get("/x"));
+    const e = await caught(call(client.api.company.$get()));
     expect([e.status, e.code]).toEqual([502, "HTTP_502"]);
     expect(e.message).toMatch(/502/);
     expect(toast).toHaveBeenCalledTimes(1);
@@ -92,7 +93,7 @@ describe("failures", () => {
 
   test("network failure: status 0, NETWORK, toast", async () => {
     globalThis.fetch = (async () => { throw new TypeError("Failed to fetch"); }) as unknown as typeof fetch;
-    const e = await caught(api.get("/x"));
+    const e = await caught(call(client.api.company.$get()));
     expect([e.status, e.code]).toEqual([0, "NETWORK"]);
     expect(toast).toHaveBeenCalledWith(expect.stringContaining("Can't reach the server"), { timeout: 8000 });
   });
