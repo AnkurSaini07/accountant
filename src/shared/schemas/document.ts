@@ -23,6 +23,7 @@ export const documentLineInput = z.object({
   rate: whole("Rate", 0), // paise per whole unit
   discount_bp: z.number().int().min(0, "Can't be negative.").max(10000, "At most 100%.").default(0), // 1250 = 12.50%
   gst_rate: z.number().min(0).max(100).refine((v) => Number.isInteger(v * 100), "At most 2 decimals."),
+  from_line_id: z.number().int().positive().nullish(), // the source line this converts (order line, challan line…)
 });
 
 /** Every field any document can carry. `documentInput` adds the cross-field rules; each type's API

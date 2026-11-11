@@ -8,6 +8,7 @@ import { fyLabel, fyOf } from "../../shared/fy.ts";
 import type { DocumentInput } from "../../shared/schemas/document.ts";
 import { ConflictError, NotFoundError, onConstraint, ValidationError } from "../errors.ts";
 import { nextNumber } from "../series/series.ts";
+import { linkLines } from "./convert.ts";
 import deleteLines from "./delete_lines.sql";
 import insertQuery from "./insert.sql";
 import insertLines from "./insert_lines.sql";
@@ -68,7 +69,9 @@ export function saveDocument(db: SQL, { companyId, userId, id, doc }: { companyI
         if (!(e instanceof RangeError) || !n) throw e;
         throw new ValidationError(n[2]!, { [`lines.${Number(n[1]) - 1}.item_id`]: [`${n[2]} Add it to the item first.`] });
       }
-      await insertLines.run(tx, { document_id: saved.id, rows: lines.map((l, i) => ({ ...l, ...totals.lines[i] })) });
+      const inserted = await insertLines.run(tx, { document_id: saved.id, rows: lines.map((l, i) => ({ ...l, ...totals.lines[i] })) });
+      const lineIds = inserted.sort((a, b) => a.position - b.position).map((r) => r.id);
+      await linkLines(tx, { companyId, type: header.type, partyId: header.party_id, lines, lineIds });
       const { lines: _l, hsn_summary: _h, sgst_label: _s, ...sums } = totals;
       await setTotals.run(tx, { id: saved.id, ...sums });
       return saved.id;
