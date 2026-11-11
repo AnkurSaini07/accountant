@@ -10,7 +10,7 @@ import Delete from "@react-spectrum/s2/icons/Delete";
 import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import { TextField } from "@react-spectrum/s2/TextField";
 import { type KeyboardEvent, useEffect, useRef } from "react";
-import { documentTotals } from "../../shared/document-totals.ts";
+import { documentTotals, PURCHASE_TYPES } from "../../shared/document-totals.ts";
 import { formatRupees, parseRupees } from "../../shared/money.ts";
 import { parseQty } from "../../shared/quantity.ts";
 import type { DocumentInput } from "../../shared/schemas/document.ts";
@@ -130,7 +130,8 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
       companyState: ctx.companyState,
       // ponytail: until a party is chosen, assume a local sale (CGST + SGST); the server works it out properly on save.
       partyState: ctx.partyState ?? ctx.companyState,
-      placeOfSupply: ctx.placeOfSupply ?? ctx.partyState ?? ctx.companyState,
+      // Goods we buy come to us: a purchase's place of supply is our state (as the server's 0012).
+      placeOfSupply: ctx.placeOfSupply ?? ((PURCHASE_TYPES as readonly string[]).includes(ctx.type) ? ctx.companyState : (ctx.partyState ?? ctx.companyState)),
       lines: used.map((d) => ({ ...complete[lines.indexOf(d)]!, hsn: d.item!.hsn, unit_decimals: d.item!.unit_decimals })),
     });
   } catch (e) {

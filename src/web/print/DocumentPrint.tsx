@@ -27,6 +27,7 @@ type Props = {
   refLabel?: string; // what party_ref means here: "Your enquiry", "Supplier invoice no."…
   refDateLabel?: string; // its date on a row of its own ("Invoice date") instead of "… dt. <date>"
   partyLabel?: string; // "Bill to" (sales) / "Supplier" (purchases) / "Consignee" (challans)
+  ours?: boolean; // a purchase document to the supplier: deliver to our address, no bank details of ours
   toolbar?: ReactNode; // Print / Back buttons on screen; never printed
 };
 
@@ -34,9 +35,9 @@ const date = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en
 const stateLine = (code: string) => `${stateByCode(code)?.name ?? ""} (${code})`;
 const addressLines = (a: Address | null) => (a ? [a.address, [a.city, a.pincode].filter(Boolean).join(" – ")].filter(Boolean) : []);
 
-export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date", refLabel = "Reference", refDateLabel, partyLabel = "Bill to", toolbar }: Props) {
+export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date", refLabel = "Reference", refDateLabel, partyLabel = "Bill to", ours = false, toolbar }: Props) {
   const office = company.addresses.find((a) => a.is_primary) ?? company.addresses[0];
-  const bank = company.bank_accounts.find((b) => b.is_default) ?? company.bank_accounts[0];
+  const bank = ours ? undefined : (company.bank_accounts.find((b) => b.is_default) ?? company.bank_accounts[0]);
   const inter = doc.igst_total > 0;
   const sgstLabel = !inter && stateByCode(doc.place_of_supply)?.utgst ? "UTGST" : "SGST";
   const shipTo = doc.shipping_address ?? doc.billing_address;
@@ -86,14 +87,24 @@ export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date"
             <p>{stateLine(doc.party_state_code)}</p>
             <p>{doc.party_gstin ? `GSTIN ${doc.party_gstin}` : "Unregistered"}</p>
           </div>
-          <div aria-label="Ship to">
-            <h3>Ship to</h3>
-            <p className="dp-strong">{doc.party_name}</p>
-            {addressLines(shipTo).map((l) => (
-              <p key={l}>{l}</p>
-            ))}
-            {shipTo?.state_code && <p>{stateLine(shipTo.state_code)}</p>}
-          </div>
+          {ours ? (
+            <div aria-label="Deliver to">
+              <h3>Deliver to</h3>
+              <p className="dp-strong">{company.legal_name}</p>
+              {office && <p>{[office.address, office.city, office.pincode].filter(Boolean).join(", ")}</p>}
+              <p>{stateLine(company.state_code)}</p>
+              {company.gstin && <p>GSTIN {company.gstin}</p>}
+            </div>
+          ) : (
+            <div aria-label="Ship to">
+              <h3>Ship to</h3>
+              <p className="dp-strong">{doc.party_name}</p>
+              {addressLines(shipTo).map((l) => (
+                <p key={l}>{l}</p>
+              ))}
+              {shipTo?.state_code && <p>{stateLine(shipTo.state_code)}</p>}
+            </div>
+          )}
           <dl className="dp-details" aria-label="Details">
             {details.map(([k, v]) => (
               <div key={k}>
