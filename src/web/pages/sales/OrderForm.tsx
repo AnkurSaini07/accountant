@@ -31,6 +31,7 @@ export function OrderForm() {
       dueLabel="Deliver by"
       refLabels={{ ref: "Customer PO no.", date: "PO date" }}
       progress="Delivered"
+      converts={[{ label: "Create challan", when: ["finalized"], href: (d) => `/sales/challans/new?from=${d.id}` }]}
     />
   );
 }

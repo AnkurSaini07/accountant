@@ -9,6 +9,7 @@ import { DatePicker } from "@react-spectrum/s2/DatePicker";
 import { DialogContainer } from "@react-spectrum/s2/Dialog";
 import { Form } from "@react-spectrum/s2/Form";
 import { LinkButton } from "@react-spectrum/s2/LinkButton";
+import { Picker, PickerItem } from "@react-spectrum/s2/Picker";
 import { ProgressCircle } from "@react-spectrum/s2/ProgressCircle";
 import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import { TextArea } from "@react-spectrum/s2/TextArea";
@@ -28,12 +29,20 @@ import { companyAtom } from "../state.ts";
 import { StatusBadge, type StatusInfo } from "./DocumentList.tsx";
 import { emptyLine, type LineDraft, LineItems, linesBody } from "./LineItems.tsx";
 import { type PickedParty, PartyPicker } from "./PartyPicker.tsx";
+import { type ShipTo, ShipToPicker } from "./ShipToPicker.tsx";
 
 /** A saved document as GET /api/<documents>/:id returns it (documents/get.sql + pending per line). */
 export type Doc = InferResponseType<(typeof client.api.quotations)[":id"]["$get"], 200>;
 /** A new draft from source documents (GET /api/<documents>/new?from=…). */
 export type Draft = InferResponseType<(typeof client.api)["sales-orders"]["new"]["$get"], 200>;
-export type Body = { party_id: number; date: string; due_date: string | null; party_ref: string | null; party_ref_date: string | null; terms: string; notes: string; lines: ReturnType<typeof linesBody>["lines"] };
+export type Body = { party_id: number; date: string; due_date: string | null; party_ref: string | null; party_ref_date: string | null; terms: string; notes: string; lines: ReturnType<typeof linesBody>["lines"];
+  // Only on types that have them (config.shipTo, config.challanTypes):
+  shipping_address?: ShipTo | null;
+  challan_type?: "sale" | "job_work" | "approval" | "returnable";
+  vehicle_no?: string | null;
+  transporter?: string | null;
+  eway_bill_no?: string | null;
+};
 
 export type DocApi = {
   get: (id: string) => Promise<Doc>;
@@ -55,13 +64,15 @@ export type DocConfig = {
   statuses: StatusInfo;
   moves: Partial<Record<string, readonly string[]>>;
   moveLabels: Record<string, string>; // the button for each move: { sent: "Mark as sent" }
-  dueLabel: string; // what due_date means here: "Valid until", "Deliver by"
+  dueLabel?: string; // what due_date means here: "Valid until", "Deliver by"; none: no due date
   refLabels?: { ref: string; date: string }; // party_ref and its date: "Customer PO no.", "PO date"
   termsHelp?: string;
   printPath?: (id: number) => string;
   progress?: string; // for an order: the column for what's been converted ("Delivered")
   converts?: { label: string; when: readonly string[]; href: (doc: Doc) => string }[]; // "Create sales order" on a sent quotation
   writers?: string[];
+  shipTo?: boolean; // a Ship to picker (challans, invoices)
+  challanTypes?: Record<string, string>; // a challan: its type (required) and transport details
 };
 
 const page = style({ display: "flex", flexDirection: "column", gap: 24 });
@@ -137,6 +148,14 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
   const [ref, setRef] = useState(start?.party_ref ?? "");
   const [refDate, setRefDate] = useState<string | null>(start?.party_ref_date ?? null);
   const [lines, setLines] = useState<LineDraft[]>(() => (start?.lines.length ? start.lines.map(toDraft) : [emptyLine()]));
+  const [shipTo, setShipTo] = useState<ShipTo | null>(() => {
+    const a = start?.shipping_address;
+    return a ? { label: a.label, address: a.address ?? "", city: a.city ?? "", pincode: a.pincode, state_code: a.state_code ?? party?.state_code ?? "" } : null;
+  });
+  const [challanType, setChallanType] = useState<string | null>(start?.challan_type ?? null);
+  const [vehicle, setVehicle] = useState(start?.vehicle_no ?? "");
+  const [transporter, setTransporter] = useState(start?.transporter ?? "");
+  const [eway, setEway] = useState(start?.eway_bill_no ?? "");
   const [terms, setTerms] = useState(start?.terms ?? "");
   const [notes, setNotes] = useState(start?.notes ?? "");
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -171,7 +190,11 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
       ToastQueue.negative("Add at least one line.", { timeout: 5000 });
       return false;
     }
-    const json: Body = { party_id: party.id, date, due_date: due, party_ref: ref.trim() || null, party_ref_date: refDate, terms, notes, lines: body.lines };
+    const json: Body = {
+      party_id: party.id, date, due_date: due, party_ref: ref.trim() || null, party_ref_date: refDate, terms, notes, lines: body.lines,
+      ...(config.shipTo && { shipping_address: shipTo }),
+      ...(config.challanTypes && { challan_type: challanType as Body["challan_type"], vehicle_no: vehicle.trim() || null, transporter: transporter.trim() || null, eway_bill_no: eway.trim() || null }),
+    };
     const result = await run(() => (doc ? api.update(String(doc.id), json) : api.create(json)), doc ? `${capital(label)} saved.` : `${capital(label)} created.`);
     if (!result) return false;
     if (doc) onSaved(result);
@@ -205,10 +228,32 @@ function Editor({ config, doc, draft, companyState, onSaved }: { config: DocConf
           void save();
         }}>
         <div className={row}>
-          <PartyPicker label={config.partyLabel} kind={config.partyKind} party={party} onPick={setParty} isRequired isReadOnly={readOnly || !!draft} autoFocus={!doc && !draft && !readOnly} />
+          <PartyPicker label={config.partyLabel} kind={config.partyKind} party={party} onPick={(p) => {
+              setParty(p);
+              setShipTo(null); // the last party's address isn't this one's
+            }} isRequired isReadOnly={readOnly || !!draft} autoFocus={!doc && !draft && !readOnly} />
           <DatePicker label="Date" name="date" isRequired isReadOnly={readOnly} value={parseDate(date)} onChange={(v) => v && setDate(v.toString())} styles={style({ width: 180 })} />
-          <DatePicker label={config.dueLabel} name="due_date" isReadOnly={readOnly} value={due ? parseDate(due) : null} onChange={(v) => setDue(v?.toString() ?? null)} styles={style({ width: 180 })} />
+          {config.dueLabel && <DatePicker label={config.dueLabel} name="due_date" isReadOnly={readOnly} value={due ? parseDate(due) : null} onChange={(v) => setDue(v?.toString() ?? null)} styles={style({ width: 180 })} />}
         </div>
+        {config.shipTo && (
+          <div className={row}>
+            <ShipToPicker partyId={party?.id ?? null} value={shipTo} onChange={setShipTo} isReadOnly={readOnly} />
+          </div>
+        )}
+        {config.challanTypes && (
+          <div className={row}>
+            <Picker label="Challan type" name="challan_type" isRequired isDisabled={readOnly} selectedKey={challanType} onSelectionChange={(k) => setChallanType(k === null ? null : String(k))} styles={style({ width: 220 })}>
+              {Object.entries(config.challanTypes).map(([k, v]) => (
+                <PickerItem key={k} id={k}>
+                  {v}
+                </PickerItem>
+              ))}
+            </Picker>
+            <TextField label="Vehicle no." name="vehicle_no" isReadOnly={readOnly} value={vehicle} onChange={setVehicle} styles={style({ width: 160 })} />
+            <TextField label="Transporter" name="transporter" isReadOnly={readOnly} value={transporter} onChange={setTransporter} styles={style({ width: 240 })} />
+            <TextField label="E-way bill no." name="eway_bill_no" inputMode="numeric" isReadOnly={readOnly} value={eway} onChange={setEway} styles={style({ width: 180 })} />
+          </div>
+        )}
         {config.refLabels && (
           <div className={row}>
             <TextField label={config.refLabels.ref} name="party_ref" isReadOnly={readOnly} value={ref} onChange={setRef} styles={style({ width: 240 })} />

@@ -25,7 +25,7 @@ type Props = {
   copy?: string; // "Original for Recipient"…
   dueLabel?: string; // what due_date means here: "Valid until", "Due date"…
   refLabel?: string; // what party_ref means here: "Your enquiry", "Supplier invoice no."…
-  partyLabel?: string; // "Bill to" (sales) / "Supplier" (purchases)
+  partyLabel?: string; // "Bill to" (sales) / "Supplier" (purchases) / "Consignee" (challans)
   toolbar?: ReactNode; // Print / Back buttons on screen; never printed
 };
 
@@ -45,6 +45,9 @@ export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date"
     ...(doc.due_date ? [[dueLabel, date(doc.due_date)] as [string, string]] : []),
     ...(doc.party_ref ? [[refLabel, doc.party_ref + (doc.party_ref_date ? ` dt. ${date(doc.party_ref_date)}` : "")] as [string, string]] : []),
     ["Place of supply", stateLine(doc.place_of_supply)],
+    ...(doc.vehicle_no ? [["Vehicle no.", doc.vehicle_no] as [string, string]] : []),
+    ...(doc.transporter ? [["Transporter", doc.transporter] as [string, string]] : []),
+    ...(doc.eway_bill_no ? [["E-way bill no.", doc.eway_bill_no] as [string, string]] : []),
     ...(doc.reverse_charge ? [["Reverse charge", "Yes"] as [string, string]] : []),
   ];
 
