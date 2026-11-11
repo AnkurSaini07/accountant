@@ -67,6 +67,14 @@ export const salesOrderInput = inputFor("sales_order");
 /** Quotation status moves (FR-4.1): Draft → Sent → Accepted / Rejected / Expired. */
 export const QUOTATION_MOVES = { draft: ["sent"], sent: ["accepted", "rejected", "expired"] } as const satisfies Record<string, readonly string[]>;
 export const QUOTATION_STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
+/** A delivery challan (FR-4.3): its type is required; vehicle, transporter and e-way bill are optional. */
+export const challanInput = documentFields
+  .omit({ type: true })
+  .extend({ challan_type: z.enum(CHALLAN_TYPES, "Choose the challan type.") })
+  .transform((d): DocumentInput => ({ ...d, type: "challan" }));
+/** Challan moves: Draft → Finalized (goods sent) → Cancelled. */
+export const CHALLAN_MOVES = { draft: ["finalized", "cancelled"], finalized: ["cancelled"] } as const satisfies Record<string, readonly string[]>;
+export const CHALLAN_STATUSES = ["draft", "finalized", "cancelled"] as const;
 /** Sales order moves (FR-4.2): Draft → Finalized (confirmed; challans and invoices can be made from it) → Cancelled. */
 export const SALES_ORDER_MOVES = { draft: ["finalized", "cancelled"], finalized: ["cancelled"] } as const satisfies Record<string, readonly string[]>;
 export const SALES_ORDER_STATUSES = ["draft", "finalized", "cancelled"] as const;
