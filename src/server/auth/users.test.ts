@@ -60,7 +60,7 @@ describe("sessions", () => {
     expect(await sessionUser(db, "not-a-real-token")).toBeNull();
     expect(await sessionUser(db, undefined)).toBeNull();
 
-    const old = await createSession(db, user.id, new Date(Date.now() - SESSION_TTL_MS - 1000));
+    const old = await createSession(db, user.id, { now: new Date(Date.now() - SESSION_TTL_MS - 1000) });
     expect(await sessionUser(db, old.token)).toBeNull();
 
     const live = await createSession(db, user.id);

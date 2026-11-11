@@ -1,2 +1,2 @@
-insert into sessions (token_hash, user_id, expires_at)
-values (:token_hash, :user_id, :expires_at)
+insert into sessions (token_hash, user_id, expires_at, id_token)
+values (:token_hash, :user_id, :expires_at, :id_token)
