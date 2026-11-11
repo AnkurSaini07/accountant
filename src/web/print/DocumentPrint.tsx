@@ -48,7 +48,8 @@ export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date"
     ...(doc.vehicle_no ? [["Vehicle no.", doc.vehicle_no] as [string, string]] : []),
     ...(doc.transporter ? [["Transporter", doc.transporter] as [string, string]] : []),
     ...(doc.eway_bill_no ? [["E-way bill no.", doc.eway_bill_no] as [string, string]] : []),
-    ...(doc.reverse_charge ? [["Reverse charge", "Yes"] as [string, string]] : []),
+    // Rule 46(p): an invoice always says whether reverse charge applies; others only when it does.
+    ...(doc.reverse_charge || doc.type === "invoice" ? [["Reverse charge", doc.reverse_charge ? "Yes" : "No"] as [string, string]] : []),
   ];
 
   return (
@@ -69,6 +70,7 @@ export function DocumentPrint({ doc, company, title, copy, dueLabel = "Due date"
             <h2>{title}</h2>
             {copy && <p>{copy}</p>}
             {doc.status === "draft" && <p className="dp-draft">Draft – not issued</p>}
+            {doc.status === "cancelled" && <p className="dp-draft">Cancelled – not valid</p>}
           </div>
         </header>
 
