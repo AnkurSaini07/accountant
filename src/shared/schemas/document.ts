@@ -22,7 +22,8 @@ const whole = (what: string, min: number) =>
 export const documentLineInput = z.object({
   item_id: z.number().int().positive("Choose an item."),
   description: z.string().trim().max(1000).default(""),
-  qty: whole("Quantity", 1), // in the unit's smallest step (1.250 KGS = 1250)
+  qty: whole("Quantity", 1), // in the unit's smallest step (1.250 KGS = 1250); on a GRN, the accepted qty
+  rejected_qty: whole("Rejected qty", 0).optional(), // GRNs only (saveDocument checks): received but sent back
   rate: whole("Rate", 0), // paise per whole unit
   discount_bp: z.number().int().min(0, "Can't be negative.").max(10000, "At most 100%.").default(0), // 1250 = 12.50%
   gst_rate: z.number().min(0).max(100).refine((v) => Number.isInteger(v * 100), "At most 2 decimals."),
@@ -100,3 +101,8 @@ export const creditNoteInput = documentFields
   .omit({ type: true, challan_type: true, vehicle_no: true, transporter: true, eway_bill_no: true })
   .extend({ note_reason: z.enum(NOTE_REASONS, "Choose why: goods returned or a rate difference.") })
   .transform((d): DocumentInput => ({ ...d, type: "credit_note", challan_type: null, vehicle_no: null, transporter: null, eway_bill_no: null }));
+/** A GRN (FR-5.2), against a PO or fresh: party_ref / party_ref_date are the supplier's challan no.
+ *  and date; vehicle and transporter as on a challan. Each line: accepted qty (qty) and rejected_qty. */
+export const grnInput = documentFields
+  .omit({ type: true, challan_type: true, note_reason: true })
+  .transform((d): DocumentInput => ({ ...d, type: "grn", challan_type: null, note_reason: null }));
