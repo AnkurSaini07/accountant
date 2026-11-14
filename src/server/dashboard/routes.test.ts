@@ -38,7 +38,7 @@ test("dashboard: net sales by month less credit notes, output GST, open work, to
   await doc("/invoices", "2026-05-02", DELTA, 30, "finalized"); // ₹300
   await doc("/invoices", "2026-11-12", DELTA, 999); // a draft: not a sale
   const draft = await json(call("GET", `/credit-notes/new?from=${big.id}`));
-  const cn = await json(call("POST", "/credit-notes", { ...draft, lines: [{ ...draft.lines[0], qty: 20 }] })); // ₹200 back
+  const cn = await json(call("POST", "/credit-notes", { ...draft, date: "2026-11-11", lines: [{ ...draft.lines[0], qty: 20 }] })); // ₹200 back; a fixed date, not today, so "recent" doesn't depend on the calendar
   await json(call("POST", `/credit-notes/${cn.id}/status`, { status: "finalized" }));
   await doc("/quotations", "2026-11-01", ACME, 5, "sent");
   await doc("/sales-orders", "2026-11-01", ACME, 7, "finalized"); // nothing delivered yet
