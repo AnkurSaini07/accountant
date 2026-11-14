@@ -1,0 +1,15 @@
+.title {
+  margin: 0;
+  font-weight: var(--base-text-weight-semibold);
+}
+.box {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--base-size-12);
+}
+.preview {
+  height: 64px;
+  max-width: 200px;
+  object-fit: contain;
+}

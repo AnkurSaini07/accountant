@@ -182,12 +182,12 @@ Scope is "make the monthly salary correctly", not HR. Access is limited to Admin
 - **NFR-1 Correctness of money:** amounts stored as integer paise; quantities as integers in the smallest unit or fixed 3-decimal precision. No floating-point money anywhere.
 - **NFR-2 Data safety:** daily automatic backup, kept 30 days, with a tested restore procedure. Finalized documents are immutable.
 - **NFR-3 Performance:** pages load in < 1 s on the office LAN with 5 years of data (~50k invoices).
-- **NFR-4 Usability:** keyboard-friendly data entry (Tally users are keyboard-heavy); works on a phone for viewing and challans. Accessible components (React Spectrum).
+- **NFR-4 Usability:** keyboard-friendly data entry (Tally users are keyboard-heavy); works on a phone for viewing and challans. Accessible components (Primer).
 - **NFR-5 Localisation:** INR formatting `1,23,456.00`, amount in words in lakh/crore, dates `DD-MM-YYYY`. English UI in v1, Hindi labels P2.
 - **NFR-6 Security:** no passwords in the app (Pocket ID passkeys), sessions server-side, role checks on every API route, input validated at the API boundary, HTTPS in production.
 - **NFR-7 Testability:** every task ships with tests. CI runs typecheck and all tests on every push. There are three layers:
   - **Unit / API tests** (`bun test`): every backend and shared change.
-  - **Component tests** (`bun test` with happy-dom and React Testing Library): every screen. Tests find elements by role and label, never by CSS class, because React Spectrum generates its own class names.
+  - **Component tests** (`bun test` with happy-dom and React Testing Library): every screen. Tests find elements by role and label, never by CSS class, because CSS modules and Primer generate their own class names.
   - **End-to-end tests** (Playwright): a few critical flows per milestone, such as sales, purchase, receipts and payroll. Tests sign in through a test-only route, because passkeys can't be automated; the real login is covered by mocked tests. CI keeps a Playwright trace of every failure.
 
 ## 6. Technical decisions
@@ -196,7 +196,7 @@ Scope is "make the monthly salary correctly", not HR. Access is limited to Admin
 |---|---|---|
 | Runtime | **Bun** | Also package manager, test runner, bundler. |
 | Backend | **Hono** on `Bun.serve()` | JSON API under `/api/*`. |
-| Frontend | **React** + **React Spectrum** (latest: `@react-spectrum/s2`) | S2 needs its style macro at build time; task #3 verifies it works with Bun's bundler, falling back to `@adobe/react-spectrum` v3 if not. |
+| Frontend | **React** + **Primer** (`@primer/react`, GitHub's design system) | Plain CSS, no build step beyond Bun's bundler. Replaced React Spectrum S2 on 2026-11-12: see `docs/adr/0002-primer.md`. |
 | DB access | **Reylo** — typed `.sql` files run through `Bun.sql` | Queries are type-checked against the dev Postgres. Needs TypeScript 7.1 for type inference. |
 | Database | **Postgres** in dev, CI and prod | Dev runs in OrbStack via `compose.yaml`, at `postgres.accountant.orb.local`. |
 | Migrations | Plain numbered `.sql` files + a small runner | Reylo only runs queries; it does not manage schema. |
@@ -244,7 +244,7 @@ docs/            this document, ADRs
 
 - **R-1 ~~Two SQL dialects~~ — resolved.** Postgres is used everywhere (dev, CI, prod), so the queries Reylo type-checks are the ones production runs.
 - **R-2 TypeScript 7.1 is in beta.** Reylo's types need it. Pin the version; runtime still works if type inference breaks.
-- **R-3 React Spectrum S2 + Bun bundler.** S2 relies on build-time macros; verified in task #3 before any UI work.
+- **R-3 UI library.** ~~React Spectrum S2 + Bun bundler~~: resolved by moving to Primer, which needs no build-time macros (ADR 0002).
 - **R-4 GST rule changes.** Rates and thresholds are data (FR-3.3); invoice format is reviewed with the CA before go-live.
 - **R-6 Passkeys need HTTPS.** WebAuthn works on `localhost` but needs HTTPS and a real hostname elsewhere, so an office-LAN deployment needs a domain + TLS (e.g. a reverse proxy with a certificate), not a bare IP. Staff need a device with passkey support. For people without one, Pocket ID's one-time login codes are the fallback.
 - **R-7 Pocket ID is a second service** to run, back up and keep updated. It is small (one container with its own SQLite volume), but it is a dependency for every login.

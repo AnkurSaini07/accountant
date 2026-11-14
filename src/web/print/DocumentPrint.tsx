@@ -10,7 +10,7 @@ import { formatQty } from "../../shared/quantity.ts";
 import { stateByCode } from "../../shared/states.ts";
 import { amountInWords } from "../../shared/words.ts";
 import type { client } from "../api.ts";
-import type { Company } from "../pages/settings/Company.tsx";
+import type { Company } from "../pages/settings/company.ts";
 import { HsnSummary } from "./HsnSummary.tsx";
 import "./print.css";
 

@@ -78,3 +78,8 @@
   .dp-letterhead, .dp-parties { break-after: avoid; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* The copy picker in the toolbar (screen only). */
+.copy-picker {
+  width: 280px;
+}

@@ -1,5 +1,10 @@
 # Design review brief
 
+> **Status (Nov 2026):** the first redesign pass is in: the two-level side nav with a slim top bar and user
+> popover, the dashboard, compact grid forms, documents that read as documents once finalized, one accent action
+> per screen with cancelling in a ⋯ menu, compact tables and phone cards. The problems below are kept as the record
+> of what prompted it; the screenshots in these pages show the new design.
+
 The owner doesn't like how the app looks and feels today, and wants an outside design review before more screens
 are built on the same patterns. This page gives a reviewer what they need: what can change, what can't, what
 we already see wrong, and the questions we want answered.
@@ -27,8 +32,8 @@ we already see wrong, and the questions we want answered.
 
 | Area | Today | Can it change? |
 |---|---|---|
-| Component library | **React Spectrum S2** (Adobe's design system), styled only through its `style()` macro and tokens. See `docs/adr/0001-ui-library.md`. | Yes, with a reason. Theming within S2 (tokens, density, layout) is cheap; replacing it is a large job, so say if the problems really need that. |
-| Fonts | Adobe Clean, loaded from Adobe Fonts | Yes |
+| Component library | **Primer** (GitHub's design system), with our own CSS modules on its tokens. See `docs/adr/0002-primer.md`. | Yes, with a reason. Layout and density are cheap to change; replacing the library is a large job. |
+| Fonts | The system font stack (Primer) | Yes |
 | Colour schemes | Light and dark, following the OS | Yes |
 | Accessibility | Every control has a label and works by keyboard; tests find elements by role and label | Must stay |
 | Keyboard flow in line items | Enter moves to the next cell, as in Tally | Must stay; it can get better |
@@ -71,7 +76,6 @@ From the screenshots in these pages; a reviewer will find more.
 - Where should the actions live (a sticky toolbar, a header row, a menu for secondary actions), and how should
   destructive ones be set apart?
 - Should line items stay a table on the phone, become cards, or be view-only there?
-- Is S2 the right base, or does the direction need a different library? What would we lose?
 
 ## Reading the screenshots
 

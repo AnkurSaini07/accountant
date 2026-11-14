@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
 import { todayInIndia } from "../../../shared/fy.ts";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { PAGE_SIZE, SEARCH_DELAY_MS } from "../../components/ListUrl.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
 
@@ -71,7 +71,7 @@ describe("Purchase → Orders", () => {
     expect(rowWith("PO/26-27/0003")).toHaveTextContent(/25 Nov 2026.*Received.*Sent/);
     expect(rowWith("PO/26-27/0002")).toHaveTextContent("Partly received");
     expect(rowWith("PO/26-27/0001")).not.toHaveTextContent(/received/i); // a draft hasn't been sent
-    expect(screen.getByRole("link", { name: "Orders" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getAllByRole("link", { name: "Orders" })[1]).toHaveAttribute("aria-current", "page"); // Purchase's, after Sales'
     expect(screen.getByRole("link", { name: "New purchase order" })).toHaveAttribute("href", "/purchase/orders/new");
   });
 

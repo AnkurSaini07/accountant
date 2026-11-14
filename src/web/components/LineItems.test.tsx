@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Form } from "@react-spectrum/s2/Form";
+import { Form } from "./Form.tsx";
 import { describe, expect, test } from "bun:test";
 import { useState } from "react";
 import { documentTotals } from "../../shared/document-totals.ts";
@@ -23,7 +23,7 @@ function Harness({ ctx = LOCAL, side = "sale", errors = {}, isReadOnly = false }
   const [lines, setLines] = useState([emptyLine()]);
   latest = lines;
   return (
-    <Form validationErrors={errors}>
+    <Form errors={errors} onSubmit={() => {}}>
       <LineItems lines={lines} onChange={setLines} side={side} totals={ctx} isReadOnly={isReadOnly} />
     </Form>
   );
@@ -153,6 +153,7 @@ describe("LineItems", () => {
     open({ isReadOnly: true });
     expect(screen.queryByRole("button", { name: "Add line" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Remove line/ })).not.toBeInTheDocument();
-    expect(box("Qty, line 1")).toHaveAttribute("readonly");
+    expect(screen.queryByRole("textbox", { name: "Qty, line 1" })).toBeNull(); // values as text, not locked inputs
+    expect(screen.getByRole("cell", { name: "Qty, line 1" })).toBeInTheDocument();
   });
 });

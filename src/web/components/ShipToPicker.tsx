@@ -1,10 +1,9 @@
 // Ship to on a document: the party's billing address (null) or one of its saved shipping addresses,
 // copied onto the document when picked. A document's address that's since left the party's list
 // still shows, as "As on this document".
-import { Picker, PickerItem } from "@react-spectrum/s2/Picker";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import { useEffect, useState } from "react";
 import { call, client } from "../api.ts";
+import { SelectField } from "./SelectField.tsx";
 
 export type ShipTo = { label: string | null; address: string; city: string; pincode: string | null; state_code: string };
 
@@ -36,18 +35,13 @@ export function ShipToPicker({ partyId, value, onChange, isReadOnly }: Props) {
   const selected = value ? options.find((o) => o.address && same(o.address, value))!.key : "billing";
 
   return (
-    <Picker
+    <SelectField
       label="Ship to"
       name="shipping_address"
       isDisabled={isReadOnly || !partyId}
-      selectedKey={selected}
-      onSelectionChange={(k) => onChange(options.find((o) => o.key === k)?.address ?? null)}
-      styles={style({ width: "full", maxWidth: 360 })}>
-      {options.map((o) => (
-        <PickerItem key={o.key} id={o.key}>
-          {o.text}
-        </PickerItem>
-      ))}
-    </Picker>
+      value={selected}
+      onChange={(k) => onChange(options.find((o) => o.key === k)?.address ?? null)}
+      options={options.map((o) => [o.key, o.text] as const)}
+    />
   );
 }

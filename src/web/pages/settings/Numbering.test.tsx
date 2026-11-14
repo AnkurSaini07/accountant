@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
 import { DEFAULT_PREFIX, DOC_LABELS, DOC_TYPES } from "../../../shared/numbering.ts";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
 
 // Current Indian FY start year, computed independently of the app (FY starts 1 April).
@@ -107,8 +107,7 @@ describe("Settings → Numbering", () => {
 
   test("switching the FY in the header loads that year", async () => {
     const { user, gets } = await open();
-    await user.click(screen.getByRole("button", { name: /Financial year/ }));
-    await user.click(screen.getByRole("option", { name: `${FY - 1}-${String(FY % 100).padStart(2, "0")}` }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Financial year" }), `${FY - 1}-${String(FY % 100).padStart(2, "0")}`);
     expect(await screen.findByText(new RegExp(`INV/${short(FY - 1)}/0042`))).toBeInTheDocument();
     expect(gets).toEqual([FY, FY - 1]);
   });
@@ -118,8 +117,8 @@ describe("Settings → Numbering", () => {
     expect(screen.getByText("Only an admin can change numbering.")).toBeInTheDocument();
     expect(within(rowOf("Tax invoice")).getByRole("textbox", { name: "Prefix" })).toHaveAttribute("readonly");
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
-    const nav = screen.getByRole("navigation", { name: "Settings" });
-    expect(within(nav).getByRole("link", { name: "Numbering" })).toHaveAttribute("aria-current", "page");
+    const nav = screen.getByRole("navigation", { name: "Sections" });
+    expect(within(nav).getByRole("link", { name: "Numbering" }).closest("[aria-current]")).not.toBeNull();
     expect(within(nav).getByRole("link", { name: "Company" })).toHaveAttribute("href", "/settings/company");
   });
 });

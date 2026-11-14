@@ -1,6 +1,6 @@
 # ADR 0001: UI library — React Spectrum S2 on Bun
 
-**Status:** Accepted · **Date:** 2026-11-10 · **Issue:** #3
+**Status:** Superseded by [ADR 0002](./0002-primer.md) (2026-11-12) · **Date:** 2026-11-10 · **Issue:** #3
 
 ## Decision
 

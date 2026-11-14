@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
 
 const QUOTATION = {
@@ -34,7 +34,7 @@ describe("Sales → Quotations → print", () => {
     window.print = () => void printed++;
     const user = await open("/print/quotations/9");
     const sheet = await screen.findByRole("article", { name: "Quotation QTN/26-27/0009" });
-    expect(screen.queryByRole("treegrid", { name: "Sections" })).not.toBeInTheDocument(); // no side nav or header
+    expect(screen.queryByRole("navigation", { name: "Sections" })).not.toBeInTheDocument(); // no side nav or header
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Quotation");
     expect(screen.getByLabelText("Details")).toHaveTextContent("Valid until25 Nov 2026");
     expect(sheet).toHaveTextContent("Rupees Fourteen Thousand Seven Hundred Fifty Only");

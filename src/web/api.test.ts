@@ -1,4 +1,4 @@
-import { ToastQueue } from "@react-spectrum/s2/Toast";
+import { ToastQueue } from "./toast.ts";
 import { afterAll, afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { ApiError, call, client } from "./api.ts";
 

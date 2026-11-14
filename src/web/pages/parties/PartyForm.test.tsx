@@ -3,8 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
 import { gstinCheckChar } from "../../../shared/gstin.ts";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
+import { pick, picker } from "../../test/select.ts";
 
 const DL = "07AABCS1234A1Z" + gstinCheckChar("07AABCS1234A1Z");
 const SAVED = {
@@ -46,20 +47,13 @@ async function open(url: string, { role = "admin", write }: { role?: string; wri
   return { user, writes };
 }
 const field = (label: string, within_: HTMLElement = document.body) => within(within_).getByRole("textbox", { name: label });
-/** An S2 Picker's button is named "<selected value> <label>"; the party's own pickers come before the addresses'. */
-const picker = (label: string) => screen.getAllByRole("button", { name: new RegExp(`${label}$`) })[0]!;
-async function pick(user: ReturnType<typeof userEvent.setup>, label: string, option: string | RegExp) {
-  await user.click(picker(label));
-  await user.click(await screen.findByRole("option", { name: option }));
-}
-
 describe("new party", () => {
   test("a valid GSTIN fills state and PAN; saves in paise with addresses, then back to the list", async () => {
     const { user, writes } = await open("/masters/parties/new");
     await screen.findByRole("heading", { name: "New party" });
     await user.type(field("Name"), "Sharma Steels Pvt Ltd");
     await user.type(field("GSTIN"), DL.toLowerCase());
-    expect(picker("State")).toHaveTextContent("07 – Delhi");
+    expect(picker("State")).toHaveDisplayValue("07 – Delhi");
     expect(field("PAN")).toHaveValue("AABCS1234A");
     expect(screen.getByText("Delhi. State and PAN come from the GSTIN.")).toBeInTheDocument();
 
@@ -90,7 +84,7 @@ describe("new party", () => {
     await user.type(await screen.findByRole("textbox", { name: "Name" }), "Walk-in");
     await pick(user, "GST registration", "Consumer");
     expect(screen.queryByRole("textbox", { name: "GSTIN" })).not.toBeInTheDocument();
-    expect(picker("State")).toHaveTextContent("06 – Haryana"); // the company's state
+    expect(picker("State")).toHaveDisplayValue("06 – Haryana"); // the company's state
     await pick(user, "State", "07 – Delhi");
     await user.type(field("PAN"), "abcde1234f");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -144,8 +138,8 @@ describe("new party", () => {
     await user.tab(); // Type
     await user.tab(); // GST registration
     expect(picker("GST registration")).toHaveFocus();
-    await user.keyboard("Unr"); // type-ahead picks "Unregistered business" without opening the list
-    await waitFor(() => expect(picker("GST registration")).toHaveTextContent("Unregistered business"));
+    await pick(user, "GST registration", "Unregistered business"); // the browser's own list: ↓ or type-ahead
+    expect(picker("GST registration")).toHaveDisplayValue("Unregistered business");
     field("Name").focus();
     await user.keyboard("{Enter}");
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -156,11 +150,11 @@ describe("new party", () => {
 describe("existing party", () => {
   test("loads every field (balance as Cr) and saves with PUT", async () => {
     const { user, writes } = await open("/masters/parties/7");
-    expect(await screen.findByRole("heading", { name: "Sharma Steels Pvt Ltd" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Party Sharma Steels Pvt Ltd" })).toBeInTheDocument();
     expect(field("GSTIN")).toHaveValue(DL);
     expect(field("Credit limit (₹)")).toHaveValue("500000.00");
     expect(field("Opening balance (₹)")).toHaveValue("123456.78");
-    expect(picker("Balance is")).toHaveTextContent("Cr: we owe them");
+    expect(picker("Balance is")).toHaveDisplayValue("Cr: we owe them");
     expect(field("Label", screen.getByRole("region", { name: "Shipping address 1" }))).toHaveValue("Plant 2");
     await user.clear(field("Phone"));
     await user.type(field("Phone"), "9999900000");
@@ -180,7 +174,7 @@ describe("existing party", () => {
 
   test("viewers see it read-only, with no Save or Deactivate", async () => {
     await open("/masters/parties/7", { role: "viewer" });
-    await screen.findByRole("heading", { name: "Sharma Steels Pvt Ltd" });
+    await screen.findByRole("heading", { name: "Party Sharma Steels Pvt Ltd" });
     expect(field("Name")).toHaveAttribute("readonly");
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();

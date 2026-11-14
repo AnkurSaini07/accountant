@@ -1,10 +1,9 @@
 // Choose the party on a document: type part of a name, GSTIN or phone; each match shows its GSTIN
 // and city so two similar names can be told apart (GET /api/parties).
-import { ComboBox, ComboBoxItem, Text } from "@react-spectrum/s2/ComboBox";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import type { InferResponseType } from "hono/client";
 import { useEffect, useState } from "react";
 import { call, client } from "../api.ts";
+import { ComboBox } from "./ComboBox.tsx";
 import { SEARCH_DELAY_MS } from "./ListUrl.tsx";
 
 export type PickedParty = Pick<InferResponseType<typeof client.api.parties.$get, 200>["parties"][number], "id" | "name" | "gstin" | "city" | "state_code">;
@@ -48,24 +47,17 @@ export function PartyPicker({ label, kind, party, onPick, ...props }: Props) {
       label={label}
       name="party_id"
       description={party ? details(party) : undefined}
-      items={options}
+      options={options.map((p) => ({ id: p.id, label: p.name, description: details(p) }))}
       inputValue={text}
       onInputChange={setText}
-      selectedKey={party?.id ?? null}
-      onSelectionChange={(key) => {
-        const picked = options.find((p) => p.id === key);
+      selectedId={party?.id ?? null}
+      onSelect={(o) => {
+        const picked = options.find((p) => p.id === o.id);
         if (!picked) return;
         setText(picked.name);
         onPick(picked);
       }}
-      loadingState={loading ? "filtering" : "idle"}
-      styles={style({ width: "full", maxWidth: 360 })}>
-      {(p) => (
-        <ComboBoxItem id={p.id} textValue={p.name}>
-          <Text slot="label">{p.name}</Text>
-          <Text slot="description">{details(p)}</Text>
-        </ComboBoxItem>
-      )}
-    </ComboBox>
+      loading={loading}
+    />
   );
 }

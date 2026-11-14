@@ -1,26 +1,24 @@
 // Masters → Ledgers (FR-3.4): every ledger, grouped by its ledger group (the API sorts by group,
 // then name). Search, inactive flag and page live in the URL. A row opens the ledger in a dialog;
 // so does "New ledger".
-import { Badge } from "@react-spectrum/s2/Badge";
-import { Button } from "@react-spectrum/s2/Button";
-import { Checkbox } from "@react-spectrum/s2/Checkbox";
-import { SearchField } from "@react-spectrum/s2/SearchField";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
-import { Cell, Column, Row, TableBody, TableHeader, TableView } from "@react-spectrum/s2/TableView";
+import { Button, Label } from "@primer/react";
 import { useEffect, useState } from "react";
 import { call, client } from "../../api.ts";
 import { useUser } from "../../auth.tsx";
+import { useIsPhone } from "../../components/useIsPhone.ts";
+import { CardList } from "../../components/CardList.tsx";
+import { ListPage } from "../../components/ListPage.tsx";
 import { PAGE_SIZE, Pager, useListUrl } from "../../components/ListUrl.tsx";
-import { LedgerDialog, type LedgerRow } from "./LedgerDialog.tsx";
+import { CheckboxField } from "../../components/CheckboxField.tsx";
+import { RecordTable } from "../../components/RecordTable.tsx";
+import { SearchField } from "../../components/SearchField.tsx";
+import { LedgerDialog } from "./LedgerDialog.tsx";
+import type { LedgerRow } from "./ledger.ts";
 
 const loadLedgers = (query: Parameters<typeof client.api.ledgers.$get>[0]["query"]) => call(client.api.ledgers.$get({ query }));
 type ListResponse = Awaited<ReturnType<typeof loadLedgers>>;
 
-const page = style({ display: "flex", flexDirection: "column", gap: 16 });
-const head = style({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" });
-const title = style({ font: "heading-xl", margin: 0 });
-const filters = style({ display: "flex", alignItems: "end", gap: 16, flexWrap: "wrap" });
-const nameCell = style({ display: "flex", alignItems: "center", gap: 8 });
+const nameCell = { display: "inline-flex", alignItems: "center", gap: 8 } as const;
 
 export function LedgerList() {
   const { q, inactive, pageNo, update, text, setText } = useListUrl();
@@ -48,49 +46,46 @@ export function LedgerList() {
   }, [q, inactive, pageNo, reload]);
 
   return (
-    <div className={page}>
-      <div className={head}>
-        <h1 className={title}>Ledgers</h1>
+    <ListPage
+      title="Ledgers"
+      actions={
+        <>
         {canWrite && (
-          <Button variant="accent" onPress={() => setOpen("new")}>
+          <Button variant="primary" size="small" onClick={() => setOpen("new")}>
             New ledger
           </Button>
         )}
-      </div>
-      <div className={filters}>
-        <SearchField label="Search" placeholder="Ledger or group name" value={text} onChange={setText} styles={style({ width: 280 })} />
-        <Checkbox isSelected={inactive} onChange={(on) => update({ inactive: on ? "1" : null })}>
-          Show inactive
-        </Checkbox>
-      </div>
-      <TableView
-        aria-label="Ledgers"
-        loadingState={data ? "idle" : "loading"}
-        styles={style({ minHeight: 320 })}
-        onAction={(key) => setOpen(data?.ledgers.find((l) => l.id === key) ?? null)}>
-        <TableHeader>
-          <Column minWidth={180}>Group</Column>
-          <Column isRowHeader minWidth={240}>
-            Name
-          </Column>
-        </TableHeader>
-        <TableBody
-          items={data?.ledgers ?? []}
-          renderEmptyState={() => (data ? (q || inactive ? "No ledgers match. Try another search." : "No ledgers yet.") : null)}>
-          {(l) => (
-            <Row id={l.id}>
-              <Cell>{l.group_name}</Cell>
-              <Cell>
-                <span className={nameCell}>
-                  {l.name}
-                  {l.is_system && <Badge variant="informative">System</Badge>}
-                  {!l.active && <Badge variant="neutral">Inactive</Badge>}
-                </span>
-              </Cell>
-            </Row>
-          )}
-        </TableBody>
-      </TableView>
+        </>
+      }
+      search={<SearchField aria-label="Search" placeholder="Ledger or group name" value={text} onChange={setText} />}
+      activeFilters={inactive ? 1 : 0}
+      filters={
+        <>
+        <CheckboxField label="Show inactive" isSelected={inactive} onChange={(on) => update({ inactive: on ? "1" : null })} />
+        </>
+      }>
+      <RecordTable
+        label="Ledgers"
+        rows={data?.ledgers ?? null}
+        rowKey={(l) => l.id}
+        onOpen={setOpen}
+        empty={q || inactive ? "No ledgers match. Try another search." : "No ledgers yet."}
+        columns={[
+          { label: "Group", width: "minmax(180px, 1fr)", cell: (l) => l.group_name },
+          {
+            label: "Name",
+            rowHeader: true,
+            width: "minmax(240px, 2fr)",
+            cell: (l) => (
+              <span style={nameCell}>
+                {l.name}
+                {l.is_system && <Label variant="accent">System</Label>}
+                {!l.active && <Label variant="secondary">Inactive</Label>}
+              </span>
+            ),
+          },
+        ]}
+      />
       {data && <Pager total={data.total} shown={data.ledgers.length} pageNo={pageNo} update={update} />}
       <LedgerDialog
         open={open}
@@ -101,6 +96,6 @@ export function LedgerList() {
           setReload((n) => n + 1);
         }}
       />
-    </div>
+    </ListPage>
   );
 }

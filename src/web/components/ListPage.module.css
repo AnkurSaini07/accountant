@@ -1,0 +1,35 @@
+.toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--base-size-8);
+}
+.search {
+  width: 280px;
+  min-width: 0;
+}
+.toggle {
+  display: none;
+}
+.filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--base-size-8);
+}
+@media (max-width: 767px) {
+  .search {
+    flex-grow: 1;
+    width: auto;
+  }
+  .toggle {
+    display: inline-flex;
+  }
+  .filters {
+    display: none;
+    width: 100%;
+  }
+  .filters.open {
+    display: flex;
+  }
+}

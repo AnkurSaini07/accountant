@@ -1,7 +1,6 @@
 // URL state for the master lists (parties, items, ledgers): ?q=&inactive=1&page= plus each list's
 // own filters, so refresh, Back and shared links keep the view; and the pager under the table.
-import { Button } from "@react-spectrum/s2/Button";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import { Button } from "@primer/react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -38,23 +37,23 @@ export function useListUrl() {
   return { params, q, inactive, pageNo, update, text, setText };
 }
 
-const pager = style({ display: "flex", alignItems: "center", justifyContent: "end", gap: 12, font: "body-sm" });
+const pager = { display: "flex", alignItems: "center", justifyContent: "end", gap: 12, fontSize: "var(--text-body-size-small)" } as const;
 
 /** "51–100 of 230  [Previous] [Next]"; nothing when the list is empty. */
 export function Pager({ total, shown, pageNo, update }: { total: number; shown: number; pageNo: number; update: ReturnType<typeof useListUrl>["update"] }) {
   if (!total) return null;
   const from = (pageNo - 1) * PAGE_SIZE + 1;
   return (
-    <div className={pager}>
+    <nav aria-label="Pages" style={pager}>
       <span>
         {from}–{from + shown - 1} of {total}
       </span>
-      <Button variant="secondary" size="S" isDisabled={pageNo <= 1} onPress={() => update({ page: pageNo - 1 > 1 ? String(pageNo - 1) : null })}>
+      <Button size="small" disabled={pageNo <= 1} onClick={() => update({ page: pageNo - 1 > 1 ? String(pageNo - 1) : null })}>
         Previous
       </Button>
-      <Button variant="secondary" size="S" isDisabled={pageNo >= Math.ceil(total / PAGE_SIZE)} onPress={() => update({ page: String(pageNo + 1) })}>
+      <Button size="small" disabled={pageNo >= Math.ceil(total / PAGE_SIZE)} onClick={() => update({ page: String(pageNo + 1) })}>
         Next
       </Button>
-    </div>
+    </nav>
   );
 }

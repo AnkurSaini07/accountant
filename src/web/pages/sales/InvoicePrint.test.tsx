@@ -2,8 +2,9 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
+import { pick, picker } from "../../test/select.ts";
 
 // A local sale from Faridabad (06) to Faridabad: CGST + SGST; two lines, one HSN repeated.
 const INVOICE = {
@@ -51,9 +52,8 @@ describe("Sales → Invoices → print", () => {
   test("triplicate: Original for Recipient by default; pick the copy before printing", async () => {
     const { user, sheet } = await open();
     expect(sheet).toHaveTextContent("Original for Recipient");
-    await user.click(screen.getByRole("button", { name: /Copy$/ }));
-    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["Original for Recipient", "Duplicate for Transporter", "Triplicate for Supplier"]);
-    await user.click(screen.getByRole("option", { name: "Triplicate for Supplier" }));
+    expect([...picker("Copy").options].map((o) => o.textContent)).toEqual(["Original for Recipient", "Duplicate for Transporter", "Triplicate for Supplier"]);
+    await pick(user, "Copy", "Triplicate for Supplier");
     expect(sheet).toHaveTextContent("Triplicate for Supplier");
     await waitFor(() => expect(document.title).toBe("Invoice INV/26-27/0009 – Acme Castings Pvt Ltd"));
     expect(screen.getByRole("link", { name: "Back to invoice" })).toHaveAttribute("href", "/sales/invoices/9");

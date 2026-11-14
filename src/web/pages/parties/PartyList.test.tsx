@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
 import { balanceText, PAGE_SIZE, SEARCH_DELAY_MS } from "./PartyList.tsx";
 
@@ -35,7 +35,7 @@ async function open(url = "/masters/parties", parties: Party[] = [SHARMA, GUPTA]
   await screen.findByRole("heading", { name: "Parties" });
   return { user: userEvent.setup(), queries };
 }
-const table = () => screen.getByRole("grid", { name: "Parties" });
+const table = () => screen.getByRole("table", { name: "Parties" });
 const names = () => within(table()).queryAllByRole("rowheader").map((c) => c.textContent);
 
 describe("Masters → Parties", () => {
@@ -52,7 +52,7 @@ describe("Masters → Parties", () => {
   test("clicking a row opens that party", async () => {
     const { user } = await open();
     await user.click(await screen.findByRole("rowheader", { name: /Gupta Traders/ }));
-    expect(await screen.findByRole("heading", { name: "Gupta Traders" })).toBeInTheDocument(); // the party form
+    expect(await screen.findByRole("heading", { name: "Party Gupta Traders" })).toBeInTheDocument(); // the party form
   });
 
   test("inactive parties carry a badge; consumers say so instead of a GSTIN", async () => {
@@ -93,11 +93,11 @@ describe("Masters → Parties", () => {
   test("kind and inactive filters go to the server and reset to page 1", async () => {
     const { user, queries } = await open("/masters/parties?page=3", [SHARMA], 200);
     await waitFor(() => expect(queries.at(-1)).toMatchObject({ page: "3" }));
-    await user.click(screen.getByRole("radio", { name: "Suppliers" }));
+    await user.click(screen.getByRole("button", { name: "Suppliers" }));
     await waitFor(() => expect(queries.at(-1)).toEqual({ kind: "supplier", page: "1", page_size: String(PAGE_SIZE) }));
     await user.click(screen.getByRole("checkbox", { name: "Show inactive" }));
     await waitFor(() => expect(queries.at(-1)).toMatchObject({ kind: "supplier", include_inactive: "true", page: "1" }));
-    await user.click(screen.getByRole("radio", { name: "All" }));
+    await user.click(screen.getByRole("button", { name: "All" }));
     await waitFor(() => expect(queries.at(-1)).not.toHaveProperty("kind"));
   });
 

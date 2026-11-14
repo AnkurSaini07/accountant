@@ -4,7 +4,7 @@
 // Failures throw ApiError carrying the server's { error: { code, message, details } }. Most also
 // show a toast; errors with field details don't (the form shows them next to the fields), and
 // neither does 401 (the app sends the user to sign in).
-import { ToastQueue } from "@react-spectrum/s2/Toast";
+import { ToastQueue } from "./toast.ts";
 import { type ClientResponse, hc } from "hono/client";
 import type { AppType } from "../server/app.ts";
 

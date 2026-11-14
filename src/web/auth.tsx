@@ -1,10 +1,7 @@
-// Who's signed in, for the whole app. <AuthProvider> asks /api/auth/me once; <RequireAuth> sends
-// signed-out users to /sign-in?returnTo=<where they were>, and so does any later 401 (e.g. an
-// expired session), via api.ts's unauthorized handler.
-import { ProgressCircle } from "@react-spectrum/s2/ProgressCircle";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+// Who's signed in, for the whole app. <AuthProvider> asks /api/auth/me once; RequireAuth sends
+// signed-out users to sign in, and so does any later 401 (e.g. an expired session), via api.ts's
+// unauthorized handler.
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Navigate, useLocation } from "react-router";
 import { call, client, setUnauthorizedHandler } from "./api.ts";
 
 export type Role = "admin" | "accountant" | "operator" | "viewer";
@@ -52,24 +49,4 @@ export function useUser(): User {
   const { state } = useAuth();
   if (state.status !== "signedIn") throw new Error("useUser must be used below <RequireAuth>");
   return state.user;
-}
-
-const centered = style({ display: "flex", alignItems: "center", justifyContent: "center", height: "screen" });
-
-/** Renders children for signed-in users; sends everyone else to sign in, remembering where they were. */
-export function RequireAuth({ children }: { children: ReactNode }) {
-  const { state } = useAuth();
-  const location = useLocation();
-  if (state.status === "loading") {
-    return (
-      <div className={centered}>
-        <ProgressCircle aria-label="Loading" isIndeterminate />
-      </div>
-    );
-  }
-  if (state.status === "signedOut") {
-    const returnTo = location.pathname + location.search + location.hash;
-    return <Navigate replace to={returnTo === "/" ? "/sign-in" : `/sign-in?returnTo=${encodeURIComponent(returnTo)}`} />;
-  }
-  return children;
 }

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
 import { gstinCheckChar } from "../../../shared/gstin.ts";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, calls, fakeApi, ME } from "../../test/fake-api.ts";
 
 const HR = "06AAPFU0939F1Z" + gstinCheckChar("06AAPFU0939F1Z");

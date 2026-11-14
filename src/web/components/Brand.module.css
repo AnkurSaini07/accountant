@@ -1,0 +1,25 @@
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--base-size-8);
+  flex-shrink: 0;
+}
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-emphasis);
+  color: var(--fgColor-onEmphasis);
+  font-weight: var(--base-text-weight-semibold);
+}
+.name {
+  font-weight: var(--base-text-weight-semibold);
+}
+@media (max-width: 767px) {
+  .name {
+    display: none;
+  }
+}

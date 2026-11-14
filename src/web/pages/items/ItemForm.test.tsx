@@ -2,9 +2,10 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
-import { rateChoices } from "./ItemForm.tsx";
+import { pick, picker } from "../../test/select.ts";
+import { rateChoices } from "./ItemEditor.tsx";
 
 const UNITS = [
   { id: 1, code: "NOS", name: "Numbers", decimals: 0, active: true },
@@ -51,13 +52,6 @@ async function open(url: string, { role = "admin", write }: { role?: string; wri
   return { user: userEvent.setup(), writes };
 }
 const field = (label: string | RegExp) => screen.getByRole("textbox", { name: label });
-/** An S2 Picker's button is named "<selected value> <label>", plus " (required)" when it is. */
-const picker = (label: string) => screen.getByRole("button", { name: new RegExp(`${label}( \\(required\\))?$`) });
-async function pick(user: ReturnType<typeof userEvent.setup>, label: string, option: string) {
-  await user.click(picker(label));
-  await user.click(await screen.findByRole("option", { name: option }));
-}
-
 test("rateChoices: active rates in force today, newest per rate, plus the item's own", () => {
   const today = "2026-11-11";
   expect(rateChoices(RATES, null, today).map((r) => r.id)).toEqual([1, 4, 6]);
@@ -74,11 +68,11 @@ describe("new item", () => {
     await user.type(field("Name"), "MS Flat 40x6");
     await pick(user, "Type", "Raw material");
     await user.type(field("HSN"), "7211");
-    expect(picker("Unit")).toHaveTextContent("NOS – Numbers"); // the default
+    expect(picker("Unit")).toHaveDisplayValue("NOS – Numbers"); // the default
     await pick(user, "Unit", "KGS – Kilograms");
-    await user.click(picker("GST rate"));
-    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["0%", "5%", "18%"]); // no inactive 28%, no future 18%
-    await user.click(screen.getByRole("option", { name: "18%" }));
+    const rates = [...picker("GST rate").options].filter((o) => o.value).map((o) => o.textContent);
+    expect(rates).toEqual(["0%", "5%", "18%"]); // no inactive 28%, no future 18%
+    await pick(user, "GST rate", "18%");
     await user.type(field(/^Sale price/), "1,250.50");
     await user.type(field(/^Opening quantity \(KGS\)/), "1.25");
     await user.type(field("Opening value (₹)"), "1563.13");
@@ -133,12 +127,12 @@ describe("new item", () => {
 describe("existing item", () => {
   test("loads with quantities in its unit and prices in rupees; saves with PUT", async () => {
     const { user, writes } = await open("/masters/items/2");
-    expect(await screen.findByRole("heading", { name: "MS Rod 12mm" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Item MS Rod 12mm" })).toBeInTheDocument();
     expect(field(/^Opening quantity \(KGS\)/)).toHaveValue("1.250");
     expect(field(/^Reorder level \(KGS\)/)).toHaveValue("0.500");
     expect(field("Opening value (₹)")).toHaveValue("81250.00");
     expect(field("Sale price (₹) per KGS")).toHaveValue("72.50");
-    expect(picker("GST rate")).toHaveTextContent("5%");
+    expect(picker("GST rate")).toHaveDisplayValue("5%");
     await user.clear(field("Sale price (₹) per KGS"));
     await user.type(field("Sale price (₹) per KGS"), "75");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -157,7 +151,7 @@ describe("existing item", () => {
     for (const role of ["operator", "viewer"]) {
       cleanup(); // one render per role
       await open("/masters/items/2", { role });
-      await screen.findByRole("heading", { name: "MS Rod 12mm" });
+      await screen.findByRole("heading", { name: "Item MS Rod 12mm" });
       expect(field("Name")).toHaveAttribute("readonly");
       expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
