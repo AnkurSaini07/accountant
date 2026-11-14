@@ -2,8 +2,9 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
+import { pick } from "../../test/select.ts";
 import { PAGE_SIZE, SEARCH_DELAY_MS } from "./ItemList.tsx";
 
 const row = (id: number, code: string, name: string, extra = {}) => ({ id, code, name, type: "finished", hsn: null, unit: "NOS", gst_rate: 18, sale_price: 0, active: true, ...extra });
@@ -32,7 +33,7 @@ async function open(url = "/masters/items", items = [BOLT, ROD], total?: number)
   await screen.findByRole("heading", { name: "Items" });
   return { user: userEvent.setup(), queries };
 }
-const table = () => screen.getByRole("grid", { name: "Items" });
+const table = () => screen.getByRole("table", { name: "Items" });
 
 describe("Masters → Items", () => {
   test("rows show code, name, type, HSN, unit, GST and price; the Masters nav marks Items", async () => {
@@ -49,7 +50,7 @@ describe("Masters → Items", () => {
   test("clicking a row opens the item; the nav still marks Items there", async () => {
     const { user } = await open();
     await user.click(await screen.findByRole("rowheader", { name: /MS Rod/ }));
-    expect(await screen.findByRole("heading", { name: "MS Rod 12mm" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Item MS Rod 12mm" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Items" })).toHaveAttribute("aria-current", "page");
   });
 
@@ -77,8 +78,7 @@ describe("Masters → Items", () => {
   test("type and inactive filters reach the server and reset to page 1; pages move", async () => {
     const { user, queries } = await open("/masters/items?page=2", [BOLT], 120);
     await waitFor(() => expect(queries.at(-1)).toMatchObject({ page: "2" }));
-    await user.click(screen.getByRole("button", { name: /Type$/ }));
-    await user.click(await screen.findByRole("option", { name: "Raw material" }));
+    await pick(user, "Type", "Raw material");
     await waitFor(() => expect(queries.at(-1)).toEqual({ type: "raw", page: "1", page_size: String(PAGE_SIZE) }));
     await user.click(screen.getByRole("checkbox", { name: "Show inactive" }));
     await waitFor(() => expect(queries.at(-1)).toMatchObject({ type: "raw", include_inactive: "true", page: "1" }));

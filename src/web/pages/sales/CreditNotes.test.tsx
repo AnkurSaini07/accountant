@@ -2,9 +2,10 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { PAGE_SIZE } from "../../components/ListUrl.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
+import { pick, picker } from "../../test/select.ts";
 
 const line = (id: number, extra = {}) => ({
   id, position: id, item_id: 1, item_code: "FG-101", item_name: "Hex Bolt M10 x 50", description: "", hsn: "73181500", unit: "NOS", unit_decimals: 0,
@@ -68,8 +69,6 @@ async function open(url: string, routes: Record<string, unknown> = {}, role = ME
   return { user: userEvent.setup(), sent };
 }
 const box = (name: string | RegExp) => screen.getByRole("textbox", { name });
-/** An S2 Picker's button is named "<selected value> <label>", plus " (required)" when it is. */
-const picker = (label: string) => screen.getByRole("button", { name: new RegExp(`${label}( \\(required\\))?$`) });
 const rowWith = (text: string) => screen.getAllByRole("row").find((r) => r.textContent?.includes(text))!;
 const totals = () => within(screen.getByLabelText("Totals"));
 
@@ -99,10 +98,9 @@ describe("Sales → Credit notes", () => {
   test("from the invoice: its ship-to (IGST to Delhi), its number quoted; a rate difference saves with its reason", async () => {
     const { user, sent } = await open("/sales/credit-notes/new?from=9");
     expect(box("Against invoice")).toHaveValue("INV/26-27/0009");
-    expect(picker("Reason")).toHaveTextContent("Goods returned");
+    expect(picker("Reason")).toHaveDisplayValue("Goods returned");
     await waitFor(() => expect(totals().getByText("IGST")).toBeInTheDocument()); // taxed as the invoice was
-    await user.click(picker("Reason"));
-    await user.click(await screen.findByRole("option", { name: "Rate difference" }));
+    await pick(user, "Reason", "Rate difference");
     const rate = screen.getByRole("textbox", { name: "Rate, line 1" });
     await user.clear(rate);
     await user.type(rate, "2.50");
@@ -122,11 +120,13 @@ describe("Sales → Credit notes", () => {
   });
 
   test("finalized: read-only, printable, admins can cancel it", async () => {
-    await open("/sales/credit-notes/5", { "GET /credit-notes/5": note("finalized") }, "admin");
+    const { user } = await open("/sales/credit-notes/5", { "GET /credit-notes/5": note("finalized") }, "admin");
     expect(screen.getByText("This credit note is finalized, so it can't be edited.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Print/ })).toHaveAttribute("href", "/print/credit-notes/5");
-    expect(screen.getByRole("button", { name: "Cancel credit note" })).toBeInTheDocument();
-    expect(picker("Reason")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Reason" })).toBeNull(); // a document view, not a locked form
+    expect(within(screen.getByRole("region", { name: /^Credit note/ })).getByText("Reason")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Cancel credit note…" })).toBeInTheDocument();
   });
 });
 
@@ -141,8 +141,6 @@ describe("Sales → Credit notes → print", () => {
     const sheet = await screen.findByRole("article", { name: "Credit Note CN/26-27/0005" });
     expect(screen.getByLabelText("Details")).toHaveTextContent("Credit Note no.CN/26-27/0005Date11 Nov 2026Against invoiceINV/26-27/0009Invoice date11 Nov 2026");
     expect(sheet).toHaveTextContent("Original for Recipient");
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /Copy$/ }));
-    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["Original for Recipient", "Duplicate for Supplier"]);
+    expect([...picker("Copy").options].map((o) => o.textContent)).toEqual(["Original for Recipient", "Duplicate for Supplier"]);
   });
 });

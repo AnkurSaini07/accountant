@@ -1,14 +1,11 @@
 // /print/<documents>/:id: one document on an A4 sheet (DocumentPrint), outside the app layout.
 // Print or "Save as PDF" from the toolbar; the PDF's file name comes from the page title. Documents
 // issued in copies (challans, invoices) pick which copy the sheet says it is.
-import { Button } from "@react-spectrum/s2/Button";
-import { LinkButton } from "@react-spectrum/s2/LinkButton";
-import { Picker, PickerItem } from "@react-spectrum/s2/Picker";
-import { ProgressCircle } from "@react-spectrum/s2/ProgressCircle";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import { Button, LinkButton, Spinner } from "@primer/react";
 import { useAtomValue } from "jotai";
 import { type ComponentProps, useEffect, useState } from "react";
 import { useParams } from "react-router";
+import { SelectField } from "../components/SelectField.tsx";
 import { companyAtom } from "../state.ts";
 import { DocumentPrint, type PrintDocument } from "./DocumentPrint.tsx";
 
@@ -38,12 +35,12 @@ export function PrintPage({ load, label, back, title, copies, ...print }: Props)
   }, [doc, label]);
 
   const backLink = (
-    <LinkButton href={back(id)} variant="secondary">
+    <LinkButton href={back(id)}>
       {`Back to ${label}`}
     </LinkButton>
   );
   if (doc === "missing") return <p>This {label} couldn't be loaded. {backLink}</p>;
-  if (!doc || !company) return <ProgressCircle aria-label="Loading" isIndeterminate />;
+  if (!doc || !company) return <Spinner srText="Loading" />;
   return (
     <DocumentPrint
       {...print}
@@ -54,15 +51,9 @@ export function PrintPage({ load, label, back, title, copies, ...print }: Props)
       toolbar={
         <>
           {copies && (
-            <Picker label="Copy" labelPosition="side" selectedKey={copy} onSelectionChange={(k) => setCopy(String(k))} styles={style({ width: 280 })}>
-              {copies.map((c) => (
-                <PickerItem key={c} id={c}>
-                  {c}
-                </PickerItem>
-              ))}
-            </Picker>
+            <SelectField label="Copy" hideLabel className="copy-picker" value={copy ?? null} onChange={(k) => k && setCopy(k)} options={copies.map((c) => [c, c] as const)} />
           )}
-          <Button variant="accent" onPress={() => window.print()}>
+          <Button variant="primary" onClick={() => window.print()}>
             Print or save as PDF
           </Button>
           {backLink}

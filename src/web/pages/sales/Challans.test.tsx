@@ -2,9 +2,10 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { PAGE_SIZE } from "../../components/ListUrl.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
+import { pick, picker } from "../../test/select.ts";
 
 const line = (id: number, extra = {}) => ({
   id, position: id, item_id: 1, item_code: "FG-101", item_name: "Hex Bolt M10 x 50", description: "", hsn: "73181500", unit: "NOS", unit_decimals: 0,
@@ -66,8 +67,6 @@ async function open(url: string, routes: Record<string, unknown> = {}, role = ME
   return { user: userEvent.setup(), sent };
 }
 const box = (name: string | RegExp) => screen.getByRole("textbox", { name });
-/** An S2 Picker's button is named "<selected value> <label>", plus " (required)" when it is. */
-const picker = (label: string) => screen.getByRole("button", { name: new RegExp(`${label}( \\(required\\))?$`) });
 const rowWith = (text: string) => screen.getAllByRole("row").find((r) => r.textContent?.includes(text))!;
 
 describe("Sales → Challans", () => {
@@ -86,11 +85,11 @@ describe("Sales → Challans", () => {
     cleanup();
     const { user, sent } = await open("/sales/challans/new?from=9", {}, "operator");
     expect(screen.getByText(/^Made from 1 pending line/)).toBeInTheDocument();
-    expect(picker("Challan type")).toHaveTextContent("Sale");
+    expect(picker("Challan type")).toHaveDisplayValue("Sale");
     expect(document.querySelector("[name=due_date]")).toBeNull(); // challans have no due date
-    await user.click(await waitFor(() => picker("Ship to")));
-    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["Same as billing address", "Plant 2, Plot 88, IMT, Faridabad"]);
-    await user.click(screen.getByRole("option", { name: /Plant 2/ }));
+    const shipTo = await waitFor(() => picker("Ship to"));
+    await waitFor(() => expect([...shipTo.options].map((o) => o.textContent)).toEqual(["Same as billing address", "Plant 2, Plot 88, IMT, Faridabad"]));
+    await pick(user, "Ship to", /Plant 2/);
     await user.type(box("Vehicle no."), "HR 51 AB 1234");
     await user.type(box("Transporter"), "Faridabad Roadways");
     await user.type(box("E-way bill no."), "3310 0012 3456");
@@ -119,14 +118,16 @@ describe("Sales → Challans", () => {
   test("an operator edits and issues a draft; then it's read-only with Cancel challan and Print", async () => {
     const { user, sent } = await open("/sales/challans/9", {}, "operator");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Challan DC/26-27/0009");
-    expect(picker("Challan type")).toHaveTextContent("Returnable");
+    expect(picker("Challan type")).toHaveDisplayValue("Returnable");
     expect(box("Vehicle no.")).toHaveValue("HR 51 AB 1234");
-    await waitFor(() => expect(picker("Ship to")).toHaveTextContent("Old godown, Plot 3, Ballabgarh (as on this document)")); // since removed from the party
+    await waitFor(() => expect(picker("Ship to")).toHaveDisplayValue("Old godown, Plot 3, Ballabgarh (as on this document)")); // since removed from the party
     await user.click(screen.getByRole("button", { name: "Issue challan" }));
     expect(await screen.findByText("This challan is issued, so it can't be edited.")).toBeInTheDocument();
     expect(sent.map((s) => `${s.method} ${s.path}`)).toEqual(["PUT /api/challans/9", "POST /api/challans/9/status"]);
     expect((sent[0]!.body as Record<string, unknown>).challan_type).toBe("returnable");
-    expect(screen.getByRole("button", { name: "Cancel challan" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Cancel challan" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
     expect(screen.getByRole("link", { name: "Print" })).toHaveAttribute("href", "/print/challans/9");
   });
 
@@ -145,13 +146,13 @@ describe("Sales → Challans", () => {
     const customer = screen.getByRole("combobox", { name: /Customer/ });
     await user.type(customer, "acme");
     await user.click(await screen.findByRole("option", { name: /Acme Castings/ }, { timeout: 2000 }));
-    await user.click(await waitFor(() => picker("Ship to")));
-    await user.click(await screen.findByRole("option", { name: /Plant 2/ }));
-    expect(picker("Ship to")).toHaveTextContent("Plant 2");
+    await waitFor(() => picker("Ship to"));
+    await pick(user, "Ship to", /Plant 2/);
+    expect(picker("Ship to")).toHaveDisplayValue(/^Plant 2/);
     await user.clear(customer);
     await user.type(customer, "delta");
     await user.click(await screen.findByRole("option", { name: /Delta Auto/ }, { timeout: 2000 }));
-    await waitFor(() => expect(picker("Ship to")).toHaveTextContent("Same as billing address"));
+    await waitFor(() => expect(picker("Ship to")).toHaveDisplayValue("Same as billing address"));
     expect(sent).toEqual([]);
   });
 

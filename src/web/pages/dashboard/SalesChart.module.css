@@ -1,0 +1,105 @@
+.chart {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--base-size-8);
+}
+.axis {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  height: 220px;
+  font: var(--text-caption-shorthand);
+  color: var(--fgColor-muted);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.plotArea {
+  position: relative;
+  height: 220px;
+}
+/* Recessive gridlines at 0, 25, 50, 75, 100 %, behind the bars. */
+.gridline {
+  position: absolute;
+  inset-inline: 0;
+  height: 1px;
+  background: var(--borderColor-muted);
+  pointer-events: none;
+}
+.plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--base-size-8);
+  height: 220px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.barCol {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  height: 100%;
+  outline: none;
+}
+.barCol:focus-visible .bar {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: 2px;
+}
+/* One series, one hue: the current month solid, the others lighter. */
+.bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--data-blue-color-emphasis);
+  opacity: 0.55;
+  transition: opacity 80ms;
+}
+.bar[data-current],
+.bar[data-active] {
+  opacity: 1;
+}
+.tip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50%;
+  z-index: 1;
+  margin-bottom: var(--base-size-4);
+  padding: var(--base-size-4) var(--base-size-8);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-emphasis);
+  color: var(--fgColor-onEmphasis);
+  font: var(--text-caption-shorthand);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.months {
+  grid-column-start: 2;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--base-size-8);
+  font: var(--text-caption-shorthand);
+  color: var(--fgColor-muted);
+  text-align: center;
+}
+/* Phones get one-letter months (A M J ...): "Sept" won't fit a 20px column. */
+.monthLong {
+  display: none;
+}
+@media (min-width: 768px) {
+  .monthLong {
+    display: inline;
+  }
+  .monthShort {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .plot,
+  .months {
+    gap: var(--base-size-4);
+  }
+}

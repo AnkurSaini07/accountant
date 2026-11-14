@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
 import { todayInIndia } from "../../../shared/fy.ts";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { SEARCH_DELAY_MS } from "../../components/ListUrl.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
 
@@ -113,7 +113,8 @@ describe("Sales → Quotations → form", () => {
     expect(sent.map((s) => `${s.method} ${s.path}`)).toEqual(["PUT /api/quotations/9", "POST /api/quotations/9/status"]); // saves first
     expect(sent[1]!.body).toEqual({ status: "sent" });
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
-    expect(box("Qty, line 1")).toHaveAttribute("readonly");
+    expect(screen.queryByRole("textbox", { name: "Qty, line 1" })).toBeNull(); // read as a document now
+    expect(screen.getByRole("cell", { name: "Qty, line 1" })).toBeInTheDocument();
     for (const name of ["Accepted", "Rejected", "Expired"]) expect(screen.getByRole("button", { name })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mark as sent" })).not.toBeInTheDocument();
   });

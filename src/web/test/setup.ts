@@ -5,11 +5,6 @@
 // call the API mock `fetch` explicitly instead of relying on happy-dom's.
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { afterEach, expect } from "bun:test";
-import { s2Plugin } from "../../../scripts/s2-plugin.ts";
-
-// Same S2 style-macro handling as the dev server and build. Without it, `style()` is undefined
-// at runtime in stable Bun (only some canaries run the macro on their own).
-Bun.plugin(s2Plugin);
 
 const BUN_GLOBALS = [
   "fetch", "Request", "Response", "Headers", "FormData", "Blob", "File", "URL", "URLSearchParams",
@@ -20,16 +15,15 @@ const BUN_GLOBALS = [
 const saved = BUN_GLOBALS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
 GlobalRegistrator.register({
   url: "http://localhost:3000/",
-  // Tests never touch the network: S2 tries to preload its web fonts, for example.
+  // Tests never touch the network.
   settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true, disableIframePageLoading: true },
 });
 for (const [key, descriptor] of saved) if (descriptor) Object.defineProperty(globalThis, key, descriptor);
 
-// happy-dom does no layout, so every element measures 0×0 and React Spectrum's virtualized
-// collections (Picker, ComboBox, TableView…) render only one row. Give elements a size, as the
-// React Spectrum testing docs recommend.
-for (const prop of ["clientWidth", "clientHeight"] as const) {
-  Object.defineProperty(HTMLElement.prototype, prop, { configurable: true, get: () => 1000 });
+// happy-dom has the popover attribute but not the Popover API that Primer's tooltips call on focus.
+// Tests never look at tooltips, so no-ops do (Primer's own polyfill loops forever under happy-dom).
+for (const name of ["showPopover", "hidePopover", "togglePopover"] as const) {
+  if (!(name in HTMLElement.prototype)) Object.defineProperty(HTMLElement.prototype, name, { configurable: true, value() {} });
 }
 
 // Imported only now: Testing Library binds `screen` to the global document when it is first loaded,
@@ -39,7 +33,12 @@ const { cleanup } = await import("@testing-library/react");
 
 expect.extend(matchers);
 // Testing Library only auto-cleans up when test hooks are globals, which they aren't in bun:test.
-afterEach(cleanup);
+// Primer's dialogs and menus portal into a root it adds to <body>, which cleanup() leaves behind: a
+// dialog still open when a test ends would otherwise show up in the next test.
+afterEach(() => {
+  cleanup();
+  document.body.replaceChildren();
+});
 
 // Component tests fake the API with fakeApi(); put Bun's fetch back after each one.
 const { restoreFetch } = await import("./fake-api.ts");

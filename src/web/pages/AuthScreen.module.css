@@ -1,0 +1,31 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--base-size-24);
+  min-height: 100vh;
+  padding: var(--base-size-24);
+  box-sizing: border-box;
+  background: var(--bgColor-inset);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--base-size-16);
+  max-width: 400px;
+  padding: var(--base-size-24);
+  text-align: center;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-default);
+}
+.title {
+  margin: 0;
+  font: var(--text-title-shorthand-large);
+}
+.body {
+  margin: 0;
+  color: var(--fgColor-muted);
+}

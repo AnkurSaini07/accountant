@@ -15,12 +15,16 @@ test("signed out, a deep link goes to sign in", async ({ page }) => {
 test("admin signs in and sees the layout", async ({ page }) => {
   await signIn(page, "admin");
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
-  await expect(page.getByText("E2E admin")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening), E2E$/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent documents" })).toBeVisible(); // the dashboard API answered
+  await page.getByRole("button", { name: "Account: E2E admin" }).click();
+  await expect(page.getByRole("dialog").getByText("E2E admin")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await page.keyboard.press("Escape");
 
-  const nav = page.getByRole("treegrid", { name: "Sections" });
-  await nav.getByRole("link", { name: "Sales" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Quotations" })).toBeVisible(); // Sales opens its first screen
+  const nav = page.getByRole("navigation", { name: "Sections" });
+  await nav.getByRole("button", { name: "Sales" }).click(); // opens the section
+  await nav.getByRole("link", { name: "Quotations" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Quotations" })).toBeVisible();
   await expect(page).toHaveURL("/sales/quotations");
 });

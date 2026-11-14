@@ -19,6 +19,7 @@ export default defineConfig({
         items: [
           { text: "Overview", link: "/screens/" },
           { text: "Design review brief", link: "/screens/design-brief" },
+          { text: "Screen catalogue", link: "/screens/screen-catalogue" },
           { text: "Shared patterns", link: "/screens/patterns" },
           { text: "App shell", link: "/screens/shell" },
           { text: "Masters", link: "/screens/masters" },
@@ -34,7 +35,8 @@ export default defineConfig({
           { text: "Requirements", link: "/REQUIREMENTS" },
           { text: "Operations", link: "/OPERATIONS" },
           { text: "Sign-in (Pocket ID)", link: "/AUTH" },
-          { text: "ADR 0001: UI library", link: "/adr/0001-ui-library" },
+          { text: "ADR 0001: UI library (superseded)", link: "/adr/0001-ui-library" },
+          { text: "ADR 0002: Primer", link: "/adr/0002-primer" },
         ],
       },
     ],

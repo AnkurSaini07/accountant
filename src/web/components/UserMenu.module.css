@@ -1,0 +1,55 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  background: var(--bgColor-accent-muted);
+  color: var(--fgColor-accent);
+  font: var(--text-body-shorthand-small);
+  font-weight: var(--base-text-weight-semibold);
+  cursor: pointer;
+}
+.avatar:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: 2px;
+}
+.large {
+  width: 40px;
+  height: 40px;
+  font: var(--text-body-shorthand-medium);
+  font-weight: var(--base-text-weight-semibold);
+  cursor: default;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-12);
+  width: 260px;
+  padding: var(--base-size-12);
+}
+.who {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-12);
+  min-width: 0;
+}
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.name {
+  font-weight: var(--base-text-weight-semibold);
+}
+.meta {
+  font: var(--text-body-shorthand-small);
+  color: var(--fgColor-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

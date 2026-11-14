@@ -1,0 +1,81 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-16);
+  min-width: 0; /* lets the table scroll instead of widening the form */
+}
+.scroller {
+  overflow-x: auto; /* on a phone the table scrolls sideways */
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--text-body-shorthand-small);
+}
+.th,
+.thEnd {
+  padding: var(--base-size-6) var(--base-size-8);
+  white-space: nowrap;
+  font-weight: var(--base-text-weight-semibold);
+  color: var(--fgColor-muted);
+  text-align: start;
+  background: var(--bgColor-muted);
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+.thEnd {
+  text-align: end;
+}
+.td,
+.fixed,
+.money {
+  padding: var(--base-size-4);
+  vertical-align: top;
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.fixed,
+.money {
+  padding: var(--base-size-8) var(--base-size-8) var(--base-size-4);
+  white-space: nowrap;
+}
+.money {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.text {
+  padding: var(--base-size-8);
+}
+.moneyCell {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Cell widths; a GRN's extra Rejected column narrows qty and description so Amount still fits. */
+.qtyWide {
+  width: 100px;
+}
+.qtyNarrow {
+  width: 80px;
+}
+.descWide {
+  width: 200px;
+}
+.descNarrow {
+  width: 160px;
+}
+.rate {
+  width: 110px;
+}
+.discount {
+  width: 70px;
+}
+.add {
+  align-self: start;
+}
+.item {
+  width: 240px;
+}

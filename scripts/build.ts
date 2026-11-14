@@ -1,5 +1,4 @@
 // Production build of the web app: `bun run build` → dist/
-import { s2Plugin } from "./s2-plugin.ts";
 
 const outdir = process.argv[2] ?? "dist";
 const result = await Bun.build({
@@ -7,7 +6,6 @@ const result = await Bun.build({
   outdir,
   minify: true,
   sourcemap: "linked",
-  plugins: [s2Plugin],
   throw: false,
 });
 for (const log of result.logs) console.error(String(log));

@@ -1,23 +1,28 @@
 // Component test pattern for every screen: render, find elements by role/label (never CSS classes,
-// which React Spectrum generates), interact with userEvent, assert on what the user sees.
+// which CSS modules generate), interact with userEvent, assert on what the user sees.
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, spyOn, test } from "bun:test";
 import { MemoryRouter, useLocation } from "react-router";
 import { call, client } from "./api.ts";
 import { COMPANY, calls, fakeApi, ME, unauthorized } from "./test/fake-api.ts";
-import { Shell } from "./App.tsx";
-import { NAV, sectionOf } from "./routes.tsx";
+import { Shell } from "./Shell.tsx";
+import { NAV, navRouteOf, sectionOf } from "./routes.ts";
+
+const DASHBOARD = {
+  net_sales: 0, output_gst: 0, invoice_count: 0, draft_invoices: 0, quotes_awaiting: 0, quotes_awaiting_value: 0, orders_to_deliver: 0, pos_to_receive: 0,
+  monthly: [], top_customers: [], recent: [],
+};
 
 /** Renders the app at `path` as a signed-in user and waits for the layout. */
 async function renderAt(path: string) {
-  fakeApi({ "GET /auth/me": ME, "GET /company": COMPANY });
+  fakeApi({ "GET /auth/me": ME, "GET /company": COMPANY, "GET /dashboard": DASHBOARD });
   render(
     <MemoryRouter initialEntries={[path]}>
       <Shell />
     </MemoryRouter>,
   );
-  const nav = within(await screen.findByRole("treegrid", { name: "Sections" }));
+  const nav = within(await screen.findByRole("navigation", { name: "Sections" }));
   return { user: userEvent.setup(), nav };
 }
 
@@ -33,31 +38,41 @@ function recentYears(count = 2): [string, string, ...string[]] {
 describe("app layout", () => {
   test("lists every section and marks the current one", async () => {
     const { nav } = await renderAt("/");
-    for (const { label } of NAV) expect(nav.getByRole("link", { name: label })).toBeInTheDocument();
-    expect(nav.getByRole("link", { name: "Dashboard" }).closest("[aria-current]")).not.toBeNull();
-    expect(heading()).toHaveTextContent("Dashboard");
+    // A section with pages is a button that opens them; the others are links.
+    for (const { label, pages } of NAV) expect(nav.getByRole(pages?.length ? "button" : "link", { name: label })).toBeInTheDocument();
+    expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    expect(heading()).toHaveTextContent(/^Good (morning|afternoon|evening), Asha$/);
+  });
+
+  test("the current section opens to its pages, and the page is marked", async () => {
+    const { nav } = await renderAt("/settings/company");
+    expect(nav.getByRole("button", { name: "Settings" })).toHaveAttribute("aria-expanded", "true");
+    expect(nav.getByRole("link", { name: "Company" })).toHaveAttribute("aria-current", "page");
+    expect(nav.getByRole("link", { name: "Numbering" })).toHaveAttribute("href", "/settings/numbering");
+    expect(nav.getByRole("button", { name: "Sales" })).toHaveAttribute("aria-expanded", "false");
   });
 
   test("navigates between sections without leaving the app", async () => {
     const { user, nav } = await renderAt("/");
-    await user.click(nav.getByRole("link", { name: "Purchase" }));
-    expect(heading()).toHaveTextContent("Purchase");
-    expect(nav.getByRole("link", { name: "Purchase" }).closest("[aria-current]")).not.toBeNull();
-    expect(nav.getByRole("link", { name: "Dashboard" }).closest("[aria-current]")).toBeNull();
+    await user.click(nav.getByRole("link", { name: "Accounts" }));
+    expect(heading()).toHaveTextContent("Accounts");
+    expect(nav.getByRole("link", { name: "Accounts" })).toHaveAttribute("aria-current", "page");
+    expect(nav.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
   });
 
   test("is keyboard navigable", async () => {
-    const { user } = await renderAt("/");
-    await user.tab();
-    expect(document.activeElement).toHaveTextContent("Dashboard");
-    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
-    expect(heading()).toHaveTextContent("Purchase");
+    const { user, nav } = await renderAt("/");
+    const accounts = nav.getByRole("link", { name: "Accounts" });
+    for (let i = 0; i < 40 && document.activeElement !== accounts; i++) await user.tab();
+    expect(accounts).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(heading()).toHaveTextContent("Accounts");
   });
 
   test("deep links highlight their section", async () => {
     const { nav } = await renderAt("/purchase/bills/42"); // a section not built yet: its placeholder
     expect(heading()).toHaveTextContent("Purchase");
-    expect(nav.getByRole("link", { name: "Purchase" }).closest("[aria-current]")).not.toBeNull();
+    expect(nav.getByRole("button", { name: "Purchase" })).toHaveAttribute("aria-expanded", "true");
   });
 
   test("unknown paths show a not-found page", async () => {
@@ -68,18 +83,14 @@ describe("app layout", () => {
   test("header shows the company and lets the user switch financial year", async () => {
     const { user } = await renderAt("/");
     expect(await screen.findByText("Saini Engineering Works")).toBeInTheDocument();
-    const picker = () => screen.getByRole("button", { name: /Financial year/ });
+    const picker = screen.getByRole("combobox", { name: "Financial year" });
 
     const [current, previous] = recentYears();
-    expect(picker()).toHaveTextContent(current);
+    expect(picker).toHaveValue(current);
+    expect(within(picker).getAllByRole("option").map((o) => o.textContent)).toEqual(recentYears(3));
 
-    await user.click(picker());
-    const listbox = within(screen.getByRole("listbox"));
-    expect(listbox.getAllByRole("option").map((o) => o.textContent)).toEqual(recentYears(3));
-    await user.click(listbox.getByRole("option", { name: previous }));
-
-    expect(picker()).toHaveTextContent(previous);
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await user.selectOptions(picker, previous);
+    expect(picker).toHaveValue(previous);
   });
 });
 
@@ -88,8 +99,8 @@ describe("api failures", () => {
     const { user } = await renderAt("/");
     fakeApi({ "GET /company": Response.json({ error: { code: "CONFLICT", message: "Invoice number INV-1 already exists" } }, { status: 409 }) });
     await act(() => call(client.api.company.$get()).catch(() => {}));
-    const toast = await screen.findByRole("alertdialog");
-    expect(toast).toHaveTextContent("Invoice number INV-1 already exists");
+    const toast = (await screen.findAllByRole("alert")).find((t) => t.textContent?.includes("Invoice number INV-1 already exists"));
+    if (!toast) throw new Error("no toast for the failure");
     await user.click(within(toast).getByRole("button", { name: /close|dismiss/i }));
     expect(screen.queryByText("Invoice number INV-1 already exists")).not.toBeInTheDocument();
   });
@@ -117,7 +128,7 @@ describe("sign-in", () => {
     renderSignedOut("/sales/invoices?fy=2026-27");
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(url()).toBe("/sign-in?returnTo=%2Fsales%2Finvoices%3Ffy%3D2026-27");
-    expect(screen.queryByRole("treegrid")).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 
   test("the button starts the Pocket ID login with returnTo", async () => {
@@ -143,7 +154,7 @@ describe("sign-in", () => {
   });
 
   test("already signed in: /sign-in goes on to returnTo", async () => {
-    fakeApi({ "GET /auth/me": ME, "GET /company": COMPANY });
+    fakeApi({ "GET /auth/me": ME, "GET /company": COMPANY, "GET /dashboard": DASHBOARD });
     render(
       <MemoryRouter initialEntries={["/sign-in?returnTo=%2Freports"]}>
         <Shell />
@@ -171,14 +182,28 @@ describe("sign-in", () => {
     const assign = spyOn(window.location, "assign").mockImplementation(() => {});
     try {
       const { user } = await renderAt("/");
-      expect(screen.getByText("Asha Verma")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Account: Asha Verma" }));
+      const account = within(await screen.findByRole("dialog"));
+      expect(account.getByText("Asha Verma")).toBeInTheDocument();
+      expect(account.getByText("Admin")).toBeInTheDocument();
+      expect(account.getByText("asha@example.com")).toBeInTheDocument();
       fakeApi({ "POST /auth/logout": { endSessionUrl: "https://id.example/logout?id_token_hint=x" } });
-      await user.click(screen.getByRole("button", { name: "Sign out" }));
+      await user.click(account.getByRole("button", { name: "Sign out" }));
       expect(calls).toEqual(["POST /auth/logout"]);
       expect(assign).toHaveBeenCalledWith("https://id.example/logout?id_token_hint=x");
     } finally {
       assign.mockRestore();
     }
+  });
+});
+
+describe("navRouteOf", () => {
+  test("a page and anything under it marks that page; elsewhere, the section", () => {
+    expect(navRouteOf("/sales/invoices")).toBe("/sales/invoices");
+    expect(navRouteOf("/sales/invoices/42")).toBe("/sales/invoices");
+    expect(navRouteOf("/sales/orders-archive")).toBe("/sales"); // a prefix of the name isn't the page
+    expect(navRouteOf("/accounts/x")).toBe("/accounts");
+    expect(navRouteOf("/")).toBe("/");
   });
 });
 

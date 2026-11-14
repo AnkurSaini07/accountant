@@ -2,8 +2,9 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
+import { pick, picker } from "../../test/select.ts";
 import { PAGE_SIZE } from "../../components/ListUrl.tsx";
 
 const group = (id: number, name: string, nature: string, children: object[] = [], parent_id: number | null = null) => ({ id, parent_id, name, nature, is_system: true, children });
@@ -46,7 +47,6 @@ async function open(routes: Record<string, unknown> = {}, role: Role = "accounta
   await screen.findByRole("row", { name: /HDFC/ });
   return { user: userEvent.setup(), queries, sent };
 }
-const picker = (label: string) => screen.getByRole("button", { name: new RegExp(`${label}( \\(required\\))?$`) });
 
 describe("Masters → Ledgers", () => {
   test("rows show group and name, system ledgers marked; the Masters nav marks Ledgers", async () => {
@@ -63,15 +63,14 @@ describe("Masters → Ledgers", () => {
     await user.click(screen.getByRole("button", { name: "New ledger" }));
     const dialog = await screen.findByRole("dialog", { name: "New ledger" });
     await user.type(within(dialog).getByRole("textbox", { name: /Name/ }), "SBI A/c");
-    await user.click(await within(dialog).findByRole("button", { name: /Group \(required\)$/ }));
-    const sections = within(await screen.findByRole("listbox")).getAllByRole("group");
-    const header = (s: HTMLElement) => document.getElementById(s.getAttribute("aria-labelledby") ?? "")?.textContent;
-    expect(sections.map((s) => [header(s), within(s).getAllByRole("option").map((o) => o.textContent)])).toEqual([
+    const group = await waitFor(() => picker("Group", dialog));
+    const sections = [...group.querySelectorAll("optgroup")];
+    expect(sections.map((s) => [s.label, within(s).getAllByRole("option").map((o) => o.textContent)])).toEqual([
       ["Capital Account", ["Capital Account"]],
       ["Current Assets", ["Current Assets", "Bank Accounts", "Cash-in-Hand"]],
       ["Indirect Expenses", ["Indirect Expenses"]],
     ]);
-    await user.click(screen.getByRole("option", { name: "Bank Accounts" }));
+    await pick(user, "Group", "Bank Accounts", dialog);
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(sent).toEqual([{ method: "POST", path: "/api/ledgers", body: { name: "SBI A/c", group_id: 3 } }]);
@@ -83,7 +82,7 @@ describe("Masters → Ledgers", () => {
     const { user } = await open({ "PUT /ledgers/7": conflict });
     await user.click(screen.getByRole("rowheader", { name: /HDFC/ }));
     const dialog = await screen.findByRole("dialog", { name: "HDFC Current A/c" });
-    await waitFor(() => expect(picker("Group")).toHaveTextContent("Bank Accounts"));
+    await waitFor(() => expect(picker("Group")).toHaveDisplayValue("Bank Accounts"));
     const nameBox = within(dialog).getByRole("textbox", { name: /Name/ });
     await user.clear(nameBox);
     await user.type(nameBox, "Cash");
@@ -105,10 +104,10 @@ describe("Masters → Ledgers", () => {
     const dialog = await screen.findByRole("dialog", { name: "Cash" });
     expect(await within(dialog).findByText(/A system ledger: invoices and vouchers post to it/)).toBeInTheDocument();
     expect(within(dialog).getByRole("textbox", { name: /Name/ })).toHaveAttribute("readonly");
-    expect(within(dialog).getByRole("button", { name: /Group \(required\)$/ })).toBeDisabled();
+    expect(picker("Group", dialog)).toBeDisabled();
     expect(within(dialog).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    await user.click(within(dialog).getAllByRole("button", { name: "Close" }).at(-1)!); // the footer's, not the X
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 

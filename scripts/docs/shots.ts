@@ -2,6 +2,7 @@
 // server first (PORT=3100 bun scripts/e2e-server.ts), then `bun run docs:shots`. Seeds fictional
 // data, opens every screen and its key states as the right role, and saves WebP files to
 // docs/screens/img/<name>-<desktop|phone>-<light|dark>.webp (print sheets: light desktop only).
+// SHOTS=dashboard,invoice limits it to the shots whose names start with those.
 import { join } from "node:path";
 import { seed } from "./seed.ts";
 
@@ -65,7 +66,7 @@ type Shot = {
 
 const SHOTS: Shot[] = [
   // Shell
-  { name: "dashboard", url: "/", ready: "Coming soon" },
+  { name: "dashboard", url: "/", ready: "Recent documents" },
   { name: "not-found", url: "/no-such-page", ready: "Page not found", devices: ["desktop"] },
   // Masters
   { name: "parties", url: "/masters/parties", ready: "Haryana Steel Traders" },
@@ -97,7 +98,16 @@ const SHOTS: Shot[] = [
     act: async () => { await clickButton("Finalize invoice"); await wait("!!document.querySelector('[role=alertdialog]')"); } },
   { name: "invoice-finalized", url: `/sales/invoices/${ids.inv1}`, ready: "can't be edited" },
   { name: "invoice-cancel-dialog", url: `/sales/invoices/${ids.inv1}`, ready: "can't be edited", devices: ["desktop"], full: false,
-    act: async () => { await clickButton("Cancel invoice"); await wait("!!document.querySelector('[role=dialog]')"); } },
+    act: async () => {
+      const at = await center(`document.querySelector('[aria-label="More actions"]')`);
+      if (!at) throw new Error("no More actions menu");
+      await view.click(...at);
+      await wait("!!document.querySelector('[role=menuitem]')");
+      const item = await center(`[...document.querySelectorAll('[role=menuitem]')].find(e => e.textContent.startsWith("Cancel invoice"))`);
+      if (!item) throw new Error("no Cancel invoice item");
+      await view.click(...item);
+      await wait("!!document.querySelector('[role=dialog]')");
+    } },
   { name: "invoice-cancelled", url: `/sales/invoices/${ids.inv3}`, ready: "Raised twice by mistake", devices: ["desktop"] },
   { name: "invoice-viewer", url: `/sales/invoices/${ids.inv1}`, role: "viewer", ready: "You can view", devices: ["desktop"], schemes: ["light"] },
   { name: "credit-notes", url: "/sales/credit-notes", ready: "Rate difference", devices: ["desktop"] },
@@ -137,7 +147,9 @@ await view.navigate(`${BASE}/`); // CDP calls need a page
 let role = "";
 let count = 0;
 const signIn: Shot = { name: "sign-in", url: "/", ready: "Sign in" };
-for (const shot of [signIn, ...SHOTS]) {
+// SHOTS=dashboard,invoice bun run docs:shots → only shots whose name starts with one of these.
+const only = process.env.SHOTS?.split(",").filter(Boolean);
+for (const shot of [signIn, ...SHOTS].filter((s) => !only || only.some((o) => s.name.startsWith(o)))) {
   for (const scheme of shot.schemes ?? ["light", "dark"]) {
     for (const device of shot.devices ?? ["desktop", "phone"]) {
       const d = DEVICES[device];

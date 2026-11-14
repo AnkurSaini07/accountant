@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { PAGE_SIZE } from "../../components/ListUrl.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
 
@@ -121,8 +121,8 @@ describe("Purchase → GRNs", () => {
   test("a sent PO offers Receive goods; other documents have no Rejected column", async () => {
     await open("/purchase/orders/4", {}, "accountant");
     expect(screen.getByRole("link", { name: "Receive goods" })).toHaveAttribute("href", "/purchase/grns/new?from=4");
-    expect(screen.queryByRole("textbox", { name: "Rejected, line 1" })).not.toBeInTheDocument();
-    expect(box("Qty, line 1")).toBeInTheDocument();
+    expect(screen.queryByRole("cell", { name: "Rejected, line 1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Qty, line 1" })).toBeInTheDocument();
     cleanup();
     await open("/purchase/orders/4", { "GET /purchase-orders/4": { ...po, status: "draft" } }, "accountant");
     expect(screen.getByRole("button", { name: "Mark as sent" })).toBeInTheDocument();

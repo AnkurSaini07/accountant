@@ -2,9 +2,10 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "bun:test";
 import { MemoryRouter } from "react-router";
-import { Shell } from "../../App.tsx";
+import { Shell } from "../../Shell.tsx";
 import { PAGE_SIZE } from "../../components/ListUrl.tsx";
 import { COMPANY, fakeApi, ME } from "../../test/fake-api.ts";
+import { pick, picker } from "../../test/select.ts";
 
 const line = (id: number, extra = {}) => ({
   id, position: id, item_id: 1, item_code: "FG-101", item_name: "Hex Bolt M10 x 50", description: "", hsn: "73181500", unit: "NOS", unit_decimals: 0,
@@ -69,8 +70,6 @@ async function open(url: string, routes: Record<string, unknown> = {}, role = ME
   return { user: userEvent.setup(), sent };
 }
 const box = (name: string | RegExp) => screen.getByRole("textbox", { name });
-/** An S2 Picker's button is named "<selected value> <label>", plus " (required)" when it is. */
-const picker = (label: string) => screen.getByRole("button", { name: new RegExp(`${label}( \\(required\\))?$`) });
 const rowWith = (text: string) => screen.getAllByRole("row").find((r) => r.textContent?.includes(text))!;
 const totals = () => within(screen.getByLabelText("Totals"));
 
@@ -95,8 +94,8 @@ describe("Sales → Invoices", () => {
     const { user, sent } = await open("/sales/invoices/new?from=9");
     expect(screen.getByText(/^Made from 1 pending line/)).toBeInTheDocument();
     expect(totals().getByText("CGST")).toBeInTheDocument();
-    await user.click(await waitFor(() => picker("Ship to")));
-    await user.click(await screen.findByRole("option", { name: /Okhla site/ }));
+    await waitFor(() => picker("Ship to"));
+    await pick(user, "Ship to", /Okhla site/);
     await waitFor(() => expect(totals().getByText("IGST")).toBeInTheDocument());
     expect(totals().queryByText("CGST")).not.toBeInTheDocument();
     await user.click(screen.getByRole("checkbox", { name: /Reverse charge/ }));
@@ -124,7 +123,8 @@ describe("Sales → Invoices", () => {
 
   test("an admin cancels a finalized invoice with a reason; it says why afterwards", async () => {
     const { user, sent } = await open("/sales/invoices/9", { "GET /invoices/9": inv("finalized") }, "admin");
-    await user.click(screen.getByRole("button", { name: "Cancel invoice" }));
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Cancel invoice…" }));
     const dialog = within(await screen.findByRole("dialog"));
     const go = dialog.getByRole("button", { name: "Cancel it" });
     expect(go).toBeDisabled(); // no reason yet

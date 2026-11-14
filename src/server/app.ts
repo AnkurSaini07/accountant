@@ -5,6 +5,7 @@ import { createOidc, type Oidc } from "./auth/oidc.ts";
 import { authRoutes } from "./auth/routes.ts";
 import { testLoginRoutes } from "./auth/test-login.ts";
 import { companyRoutes } from "./company/routes.ts";
+import { dashboardRoutes } from "./dashboard/routes.ts";
 import { itemRoutes } from "./items/routes.ts";
 import { ledgerGroupRoutes, ledgerRoutes } from "./ledgers/routes.ts";
 import { gstRateRoutes, unitRoutes } from "./masters/routes.ts";
@@ -40,6 +41,7 @@ export function createApp({
     .get("/health", (c) => c.json({ ok: true }))
     .route("/auth", authRoutes({ db, oidc }))
     .route("/company", companyRoutes(db))
+    .route("/dashboard", dashboardRoutes(db))
     .route("/series", seriesRoutes(db))
     .route("/parties", partyRoutes(db))
     .route("/units", unitRoutes(db))

@@ -3,19 +3,18 @@
 // totals update as you type, using documentTotals, the same code the server saves with.
 // Keyboard: Enter moves to the next cell (Tab works as usual); Enter or Tab in the last cell adds a
 // line; each line's remove button is reachable by Tab. Server errors show by field name
-// (lines.2.qty) through the parent <Form validationErrors>.
-import { ActionButton, Text } from "@react-spectrum/s2/ActionButton";
-import Add from "@react-spectrum/s2/icons/Add";
-import Delete from "@react-spectrum/s2/icons/Delete";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
-import { TextField } from "@react-spectrum/s2/TextField";
+// (lines.2.qty) through the parent <Form errors>.
+import { PlusIcon, TrashIcon } from "@primer/octicons-react";
+import { Button, IconButton } from "@primer/react";
 import { type KeyboardEvent, useEffect, useRef } from "react";
 import { documentTotals, PURCHASE_TYPES } from "../../shared/document-totals.ts";
 import { formatRupees, parseRupees } from "../../shared/money.ts";
 import { parseQty } from "../../shared/quantity.ts";
 import type { DocumentInput } from "../../shared/schemas/document.ts";
 import { ItemPicker, type PickedItem } from "./ItemPicker.tsx";
+import { TextField } from "./TextField.tsx";
 import { TotalsSummary } from "./TotalsSummary.tsx";
+import c from "./LineItems.module.css";
 
 export type LineDraft = {
   key: number; // React key; stable while lines are added and removed
@@ -82,19 +81,14 @@ export function linesBody(drafts: LineDraft[]): { lines: Line[]; errors: Record<
 
 export type TotalsContext = { type: DocumentInput["type"]; companyState: string; partyState: string | null; placeOfSupply: string | null };
 
-const wrap = style({ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }); // minWidth: lets the grid scroll instead of widening the form
-const scroller = style({ overflowX: "auto" }); // on a phone the grid scrolls sideways
-const table = style({ borderCollapse: "collapse", width: "full", font: "body" });
-const th = style({ font: "ui-sm", color: "gray-700", textAlign: "start", paddingX: 4, paddingY: 8, whiteSpace: "nowrap" });
-const thEnd = style({ font: "ui-sm", color: "gray-700", textAlign: "end", paddingX: 4, paddingY: 8, whiteSpace: "nowrap" });
-const td = style({ paddingX: 4, paddingY: 4, verticalAlign: "top" });
-const fixed = style({ paddingX: 4, paddingTop: 12, verticalAlign: "top", whiteSpace: "nowrap", color: "gray-800" });
-// A GRN's extra Rejected column: narrower qty and description cells so Amount still fits.
-const qtyWide = style({ width: 100 });
-const qtyNarrow = style({ width: 80 });
-const descWide = style({ width: 200 });
-const descNarrow = style({ width: 160 });
-const money = style({ paddingX: 4, paddingTop: 12, verticalAlign: "top", whiteSpace: "nowrap", textAlign: "end", fontVariantNumeric: "tabular-nums" });
+/** "1250.5" as typed → "1,250.50"; what was typed if it doesn't parse. */
+const showRupees = (typed: string) => {
+  try {
+    return typed.trim() ? formatRupees(parseRupees(typed)) : "";
+  } catch {
+    return typed;
+  }
+};
 
 type Props = {
   lines: LineDraft[];
@@ -154,24 +148,24 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
   const amountOf = (d: LineDraft) => ("lines" in result ? result.lines[used.indexOf(d)]?.taxable : undefined);
 
   return (
-    <div className={wrap}>
-      <div className={scroller}>
-        <table className={table} aria-label="Lines">
+    <div className={c.wrap}>
+      <div className={c.scroller}>
+        <table className={c.table} aria-label="Lines">
           <thead>
             <tr>
-              <th className={th}>#</th>
-              <th className={th}>Item</th>
-              <th className={th}>Description</th>
-              <th className={th}>HSN/SAC</th>
-              <th className={thEnd}>{withRejected ? "Accepted" : "Qty"}</th>
-              {withRejected && <th className={thEnd}>Rejected</th>}
-              <th className={th}>Unit</th>
-              <th className={thEnd}>Rate (₹)</th>
-              <th className={thEnd}>Disc %</th>
-              <th className={thEnd}>GST</th>
-              <th className={thEnd}>Amount (₹)</th>
+              <th className={c.th}>#</th>
+              <th className={c.th}>Item</th>
+              <th className={c.th}>Description</th>
+              <th className={c.th}>HSN/SAC</th>
+              <th className={c.thEnd}>{withRejected ? "Accepted" : "Qty"}</th>
+              {withRejected && <th className={c.thEnd}>Rejected</th>}
+              <th className={c.th}>Unit</th>
+              <th className={c.thEnd}>Rate (₹)</th>
+              <th className={c.thEnd}>Disc %</th>
+              <th className={c.thEnd}>GST</th>
+              <th className={c.thEnd}>Amount (₹)</th>
               {!isReadOnly && (
-                <th className={th}>
+                <th className={c.th}>
                   <span hidden>Remove</span>
                 </th>
               )}
@@ -181,12 +175,39 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
             {lines.map((d, i) => {
               const n = i + 1;
               const amount = amountOf(d);
-              return (
+              return isReadOnly ? (
+                  <tr key={d.key}>
+                    <td className={`${c.fixed} ${c.text}`}>{n}</td>
+                    <td className={`${c.td} ${c.text}`}>{d.item ? `${d.item.code} – ${d.item.name}` : ""}</td>
+                    <td className={`${c.td} ${c.text}`}>{d.description}</td>
+                    <td className={`${c.fixed} ${c.text}`}>{d.item?.hsn ?? ""}</td>
+                    <td className={`${c.td} ${c.text}`} aria-label={`${withRejected ? "Accepted" : "Qty"}, line ${n}`}>
+                      <div className={c.moneyCell}>{d.qty}</div>
+                    </td>
+                    {withRejected && (
+                      <td className={`${c.td} ${c.text}`} aria-label={`Rejected, line ${n}`}>
+                        <div className={c.moneyCell}>{d.rejected ?? ""}</div>
+                      </td>
+                    )}
+                    <td className={`${c.fixed} ${c.text}`}>{d.item?.unit ?? ""}</td>
+                    <td className={`${c.td} ${c.text}`} aria-label={`Rate, line ${n}`}>
+                      <div className={c.moneyCell}>{showRupees(d.rate)}</div>
+                    </td>
+                    <td className={`${c.td} ${c.text}`}>
+                      <div className={c.moneyCell}>{d.discount ? `${d.discount}%` : ""}</div>
+                    </td>
+                    <td className={c.money}>{d.item ? `${d.item.gst_rate}%` : ""}</td>
+                    <td className={c.money} aria-label={`Amount, line ${n}`}>
+                      {amount === undefined ? "" : formatRupees(amount)}
+                    </td>
+                  </tr>
+                ) : (
                 <tr key={d.key}>
-                  <td className={fixed}>{n}</td>
-                  <td className={td}>
+                  <td className={c.fixed}>{n}</td>
+                  <td className={c.td}>
                     <ItemPicker
                       aria-label={`Item, line ${n}`}
+                      className={c.item}
                       name={`lines.${i}.item_id`}
                       item={d.item}
                       isReadOnly={isReadOnly}
@@ -194,34 +215,32 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
                       onPick={(item) => set(d.key, { item, from_line_id: null, rate: rupees(side === "sale" ? item.sale_price : item.purchase_price) })}
                     />
                   </td>
-                  <td className={td}>
-                    <TextField aria-label={`Description, line ${n}`} name={`lines.${i}.description`} isReadOnly={isReadOnly} value={d.description} onChange={(description) => set(d.key, { description })} styles={withRejected ? descNarrow : descWide} />
+                  <td className={c.td}>
+                    <TextField label={`Description, line ${n}`} hideLabel name={`lines.${i}.description`} isReadOnly={isReadOnly} value={d.description} onChange={(description) => set(d.key, { description })} className={withRejected ? c.descNarrow : c.descWide} />
                   </td>
-                  <td className={fixed}>{d.item?.hsn ?? ""}</td>
-                  <td className={td}>
-                    <TextField aria-label={`${withRejected ? "Accepted" : "Qty"}, line ${n}`} name={`lines.${i}.qty`} inputMode="decimal" isReadOnly={isReadOnly} value={d.qty} onChange={(qty) => set(d.key, { qty })} styles={withRejected ? qtyNarrow : qtyWide} />
+                  <td className={c.fixed}>{d.item?.hsn ?? ""}</td>
+                  <td className={c.td}>
+                    <TextField label={`${withRejected ? "Accepted" : "Qty"}, line ${n}`} hideLabel name={`lines.${i}.qty`} inputMode="decimal" isReadOnly={isReadOnly} value={d.qty} onChange={(qty) => set(d.key, { qty })} className={withRejected ? c.qtyNarrow : c.qtyWide} />
                   </td>
                   {withRejected && (
-                    <td className={td}>
-                      <TextField aria-label={`Rejected, line ${n}`} name={`lines.${i}.rejected_qty`} inputMode="decimal" isReadOnly={isReadOnly} value={d.rejected ?? ""} onChange={(rejected) => set(d.key, { rejected })} styles={qtyNarrow} />
+                    <td className={c.td}>
+                      <TextField label={`Rejected, line ${n}`} hideLabel name={`lines.${i}.rejected_qty`} inputMode="decimal" isReadOnly={isReadOnly} value={d.rejected ?? ""} onChange={(rejected) => set(d.key, { rejected })} className={c.qtyNarrow} />
                     </td>
                   )}
-                  <td className={fixed}>{d.item?.unit ?? ""}</td>
-                  <td className={td}>
-                    <TextField aria-label={`Rate, line ${n}`} name={`lines.${i}.rate`} inputMode="decimal" isReadOnly={isReadOnly} value={d.rate} onChange={(rate) => set(d.key, { rate })} styles={style({ width: 110 })} />
+                  <td className={c.fixed}>{d.item?.unit ?? ""}</td>
+                  <td className={c.td}>
+                    <TextField label={`Rate, line ${n}`} hideLabel name={`lines.${i}.rate`} inputMode="decimal" isReadOnly={isReadOnly} value={d.rate} onChange={(rate) => set(d.key, { rate })} className={c.rate} />
                   </td>
-                  <td className={td}>
-                    <TextField aria-label={`Discount %, line ${n}`} name={`lines.${i}.discount_bp`} inputMode="decimal" isReadOnly={isReadOnly} value={d.discount} onChange={(discount) => set(d.key, { discount })} styles={style({ width: 70 })} />
+                  <td className={c.td}>
+                    <TextField label={`Discount %, line ${n}`} hideLabel name={`lines.${i}.discount_bp`} inputMode="decimal" isReadOnly={isReadOnly} value={d.discount} onChange={(discount) => set(d.key, { discount })} className={c.discount} />
                   </td>
-                  <td className={money}>{d.item ? `${d.item.gst_rate}%` : ""}</td>
-                  <td className={money} aria-label={`Amount, line ${n}`}>
+                  <td className={c.money}>{d.item ? `${d.item.gst_rate}%` : ""}</td>
+                  <td className={c.money} aria-label={`Amount, line ${n}`}>
                     {amount === undefined ? "" : formatRupees(amount)}
                   </td>
                   {!isReadOnly && (
-                    <td className={td}>
-                      <ActionButton isQuiet aria-label={`Remove line ${n}`} onPress={() => remove(d.key)}>
-                        <Delete />
-                      </ActionButton>
+                    <td className={c.td}>
+                      <IconButton icon={TrashIcon} variant="invisible" size="small" aria-label={`Remove line ${n}`} onClick={() => remove(d.key)} />
                     </td>
                   )}
                 </tr>
@@ -231,10 +250,9 @@ export function LineItems({ lines, onChange, side, totals: ctx, isReadOnly = fal
         </table>
       </div>
       {!isReadOnly && (
-        <ActionButton onPress={add} styles={style({ alignSelf: "start" })}>
-          <Add />
-          <Text>Add line</Text>
-        </ActionButton>
+        <Button size="small" leadingVisual={PlusIcon} onClick={add} className={c.add}>
+          Add line
+        </Button>
       )}
       <TotalsSummary totals={result} />
     </div>

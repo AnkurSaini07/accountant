@@ -1,0 +1,31 @@
+.container {
+  overflow-x: auto; /* a phone or narrow window scrolls the table sideways */
+}
+.row {
+  cursor: pointer;
+}
+.row:hover {
+  background: var(--bgColor-muted);
+}
+.link {
+  color: var(--fgColor-default);
+  font-weight: var(--base-text-weight-semibold);
+  text-decoration: none;
+}
+.link:hover,
+.row:hover .link {
+  color: var(--fgColor-accent);
+}
+.message {
+  grid-column: 1 / -1;
+  color: var(--fgColor-muted);
+}
+.button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--base-text-weight-semibold);
+  text-align: start;
+  cursor: pointer;
+}
